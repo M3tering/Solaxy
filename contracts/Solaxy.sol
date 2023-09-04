@@ -1,55 +1,65 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "./IScorer.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20FlashMint.sol";
 
-contract Solaxy is ERC20 {
-    uint80 public constant MAX_SUPPLY = 100_000 * 10 ** 18;
-    uint72 public constant ALLOWANCE = 50 * 10 ** 18;
-    uint16 public constant PASSING_SCORE = 21_00;
-    uint32 public immutable GENESIS_BLOCK;
-    uint16 public blockInterval = 0;
-    // all above var packed into 1 storage slot;
+import "./ISolaxy.sol";
 
-    uint256 public lastBlock;
-    GitcoinScorer public constant SCORER = GitcoinScorer(address(0));
-    mapping(address => bool) Minted;
+contract Solaxy is ISolaxy, ERC20, ERC20Permit, ERC20Votes, ERC20FlashMint {
+    ERC20 public constant DAI = ERC20(0x1CbAd85Aa66Ff3C12dc84C5881886EEB29C1bb9b);
+    address public feeAddress;
 
-    error SupplyMaxedOut();
-    error AllowanceClaimed();
-    error InCooldown();
-    error LowPassportScore();
-    error Unqualified();
-
-    constructor() ERC20("Solaxy", "SLX") {
-        GENESIS_BLOCK = uint32(block.number);
-        lastBlock = block.number;
+    constructor() ERC20("Solaxy", "SLX") ERC20Permit("Solaxy") {
+        feeAddress = msg.sender;
     }
 
-    function canMint(address account) public view returns (bool) {
-        if (totalSupply() >= MAX_SUPPLY) revert SupplyMaxedOut();
-        if (Minted[account]) revert AllowanceClaimed();
-        if (block.number < lastBlock + blockInterval) revert InCooldown();
-        uint256 cutoff = PASSING_SCORE;
-        cutoff = totalSupply() >= MAX_SUPPLY / 2 ? cutoff + 2_00 : cutoff;
-        cutoff = block.number >= GENESIS_BLOCK + 6_307_200
-            ? cutoff + 2_00
-            : cutoff;
-
-        if (SCORER.scorePassport(account) < cutoff) revert LowPassportScore();
-        return true;
+    receive() external payable {
+        revert Prohibited();
     }
 
-    function updateStates() internal {
-        blockInterval += 7;
-        Minted[msg.sender] = true;
-        lastBlock = block.number;
+    function costToMint(uint256 amount) public view returns (uint256) {
+        return (((totalSupply() + amount) ** 2 - totalSupply() ** 2) * 125) / 100_000;
     }
 
-    function mint() public {
-        if (!canMint(msg.sender)) revert Unqualified();
-        _mint(msg.sender, ALLOWANCE);
-        updateStates();
+    function refundOnBurn(uint256 amount) public view returns (uint256) {
+        return ((totalSupply() ** 2 - (totalSupply() - amount) ** 2) * 125) / 100_000;
+    }
+
+    function mint(uint256 slxAmount) public {
+        uint256 daiAmount = costToMint(slxAmount);
+        if (!DAI.transferFrom(msg.sender, address(this), daiAmount)) revert DaiError();
+        emit Mint(slxAmount, daiAmount, DAI.balanceOf(address(this)), block.timestamp);
+        _mint(msg.sender, slxAmount);
+    }
+
+    function burn(uint256 slxAmount) public {
+        uint256 slxAmount_ = (slxAmount * 97) / 100;
+        transfer(feeAddress, slxAmount - slxAmount_);
+
+        _burn(msg.sender, slxAmount_);
+        uint256 daiAmount = refundOnBurn(slxAmount_);
+        if (!DAI.transfer(msg.sender, daiAmount)) revert DaiError();
+        emit Burn(slxAmount_, daiAmount, DAI.balanceOf(address(this)), block.timestamp);
+    }
+
+    // The following functions are overrides required by Solidity.
+
+    function _afterTokenTransfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal override(ERC20, ERC20Votes) {
+        super._afterTokenTransfer(from, to, amount);
+    }
+
+    function _mint(address to, uint256 amount) internal override(ERC20, ERC20Votes) {
+        super._mint(to, amount);
+    }
+
+    function _burn(address account, uint256 amount) internal override(ERC20, ERC20Votes) {
+        super._burn(account, amount);
     }
 }

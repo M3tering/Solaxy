@@ -2,8 +2,9 @@
 pragma solidity ^0.8.19;
 
 interface ISolaxy {
-    error Prohibited();
     error DaiError();
+    error Prohibited();
+    error TxFrontrun();
 
     event Mint(
         uint256 indexed slxAmount,
@@ -23,7 +24,7 @@ interface ISolaxy {
 
     function refundOnBurn(uint256 amount) external view returns (uint256);
 
-    function mint(uint256 slxAmount) external;
+    function mint(uint256 slxAmount, uint256 mintId) external;
 
-    function burn(uint256 slxAmount) external;
+    function burn(uint256 slxAmount, uint256 burnId) external;
 }

@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 interface ISolaxy {
     error DaiError();
     error Prohibited();
-    error TxFrontrun();
+    error StateExpired();
 
     event Mint(
         uint256 indexed slxAmount,

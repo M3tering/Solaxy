@@ -22,36 +22,45 @@ contract Solaxy is ISolaxy, ERC20, ERC20Permit, ERC20Votes, ERC20FlashMint {
         revert Prohibited();
     }
 
-    function costToMint(uint256 amount) public view returns (uint256) {
-        uint256 a = totalSupply() ** 2;
-        uint256 b = (totalSupply() + amount) ** 2;
-        return ((b - a) * 125) / 10 ** 23;
-    }
-
-    function refundOnBurn(uint256 amount) public view returns (uint256) {
-        uint256 a = (totalSupply() - amount) ** 2;
-        uint256 b = totalSupply() ** 2;
-        return ((b - a) * 125) / 10 ** 23;
-    }
-
-    function mint(uint256 slxAmount, uint256 mintId) public {
-        if (mintId < mintID++) revert TxFrontrun();
+    function mint(uint256 slxAmount, uint256 mintId) external {
+        if (mintId < mintID++) revert StateExpired();
         uint256 daiAmount = costToMint(slxAmount);
         if (!DAI.transferFrom(msg.sender, address(this), daiAmount)) revert DaiError();
         emit Mint(slxAmount, daiAmount, DAI.balanceOf(address(this)), block.timestamp);
         _mint(msg.sender, slxAmount);
     }
 
-    function burn(uint256 slxAmount, uint256 burnId) public {
-        if (burnId < burnID++) revert TxFrontrun();
-        uint256 slxAmount_ = (slxAmount * 736) / 1000;
-        uint256 daiAmount = refundOnBurn(slxAmount_);
-        uint256 burnFee = slxAmount - slxAmount_;
+    function burn(uint256 slxAmount, uint256 burnId) external {
+        if (burnId < burnID++) revert StateExpired();
+        (uint256 burnFee, uint256 burnAmount, uint256 daiAmount) = _burnWithFee(slxAmount);
 
-        _burn(msg.sender, slxAmount_);
+        _burn(msg.sender, burnAmount);
         transfer(feeAddress, burnFee);
         if (!DAI.transfer(msg.sender, daiAmount)) revert DaiError();
-        emit Burn(slxAmount_, daiAmount, DAI.balanceOf(address(this)), block.timestamp);
+        emit Burn(burnAmount, daiAmount, DAI.balanceOf(address(this)), block.timestamp);
+    }
+
+    function costToMint(uint256 amount) public view returns (uint256) {
+        return _curveBond(totalSupply(), amount, 1);
+    }
+
+    function refundOnBurn(uint256 amount) public view returns (uint256 daiAmount) {
+        (, , daiAmount) = _burnWithFee(amount);
+        return daiAmount;
+    }
+
+    function _burnWithFee(
+        uint256 slxAmount
+    ) internal view returns (uint256 burnFee, uint256 burnAmount, uint256 daiAmount) {
+        burnFee = (slxAmount * 264) / 1000;
+        burnAmount = slxAmount - burnFee;
+        daiAmount = _curveBond(totalSupply(), burnAmount, 0);
+        return (burnFee, burnAmount, daiAmount);
+    }
+
+    function _curveBond(uint256 x, uint256 y, uint256 z) internal pure returns (uint256) {
+        return
+            ((z * ((2 * x * y) + y ** 2) + (1 - z) * ((2 * x * y) - y ** 2)) * 125) / (10 ** 23);
     }
 
     // The following functions are overrides required by Solidity.

@@ -29,19 +29,18 @@ contract Solaxy is ISolaxy, XRC20 {
     function burn(uint256 slxAmount, uint256 burnId) external {
         if (burnId < burnID++) revert StateExpired();
         (uint256 burnFee, uint256 burnAmount, uint256 daiAmount) = _burnWithFee(slxAmount);
-
         transfer(feeAddress, burnFee);
         _burn(msg.sender, burnAmount);
         if (!DAI.transfer(msg.sender, daiAmount)) revert DaiError();
         emit Burn(burnAmount, daiAmount, DAI.balanceOf(address(this)), block.timestamp);
     }
 
-    function costToMint(uint256 amount) public view returns (uint256) {
-        return _curveBond(totalSupply(), amount, 1);
+    function costToMint(uint256 slxAmount) public view returns (uint256) {
+        return _curveBond(1, slxAmount, totalSupply());
     }
 
-    function refundOnBurn(uint256 amount) public view returns (uint256 daiAmount) {
-        (, , daiAmount) = _burnWithFee(amount);
+    function refundOnBurn(uint256 slxAmount) public view returns (uint256 daiAmount) {
+        (, , daiAmount) = _burnWithFee(slxAmount);
         return daiAmount;
     }
 
@@ -50,12 +49,17 @@ contract Solaxy is ISolaxy, XRC20 {
     ) internal view returns (uint256 burnFee, uint256 burnAmount, uint256 daiAmount) {
         burnFee = (slxAmount * 264) / 1000;
         burnAmount = slxAmount - burnFee;
-        daiAmount = _curveBond(totalSupply(), burnAmount, 0);
+        daiAmount = _curveBond(0, burnAmount, totalSupply());
         return (burnFee, burnAmount, daiAmount);
     }
 
-    function _curveBond(uint256 x, uint256 y, uint256 z) internal pure returns (uint256) {
-        return
-            ((z * ((2 * x * y) + y ** 2) + (1 - z) * ((2 * x * y) - y ** 2)) * 125) / (10 ** 23);
+    function _curveBond(
+        uint256 x,
+        uint256 slxAmount,
+        uint256 totalSupply
+    ) internal pure returns (uint256) {
+        uint256 a = slxAmount ** 2;
+        uint256 b = 2 * slxAmount * totalSupply;
+        return (((2 * a * x) + b - a) * 125) / (10 ** 23);
     }
 }

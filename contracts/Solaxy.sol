@@ -1,14 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20FlashMint.sol";
-
+import "./XRC20.sol";
 import "./ISolaxy.sol";
 
-contract Solaxy is ISolaxy, ERC20, ERC20Permit, ERC20Votes, ERC20FlashMint {
+contract Solaxy is ISolaxy, XRC20 {
     ERC20 public constant DAI = ERC20(0x1CbAd85Aa66Ff3C12dc84C5881886EEB29C1bb9b);
     address public feeAddress;
     uint256 public mintID;
@@ -34,8 +30,8 @@ contract Solaxy is ISolaxy, ERC20, ERC20Permit, ERC20Votes, ERC20FlashMint {
         if (burnId < burnID++) revert StateExpired();
         (uint256 burnFee, uint256 burnAmount, uint256 daiAmount) = _burnWithFee(slxAmount);
 
-        _burn(msg.sender, burnAmount);
         transfer(feeAddress, burnFee);
+        _burn(msg.sender, burnAmount);
         if (!DAI.transfer(msg.sender, daiAmount)) revert DaiError();
         emit Burn(burnAmount, daiAmount, DAI.balanceOf(address(this)), block.timestamp);
     }
@@ -61,23 +57,5 @@ contract Solaxy is ISolaxy, ERC20, ERC20Permit, ERC20Votes, ERC20FlashMint {
     function _curveBond(uint256 x, uint256 y, uint256 z) internal pure returns (uint256) {
         return
             ((z * ((2 * x * y) + y ** 2) + (1 - z) * ((2 * x * y) - y ** 2)) * 125) / (10 ** 23);
-    }
-
-    // The following functions are overrides required by Solidity.
-
-    function _afterTokenTransfer(
-        address from,
-        address to,
-        uint256 amount
-    ) internal override(ERC20, ERC20Votes) {
-        super._afterTokenTransfer(from, to, amount);
-    }
-
-    function _mint(address to, uint256 amount) internal override(ERC20, ERC20Votes) {
-        super._mint(to, amount);
-    }
-
-    function _burn(address account, uint256 amount) internal override(ERC20, ERC20Votes) {
-        super._burn(account, amount);
     }
 }

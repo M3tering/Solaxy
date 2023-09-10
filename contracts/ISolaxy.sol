@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 interface ISolaxy {
     error DaiError();
     error Prohibited();
+    error Undersupply();
     error StateExpired();
 
     event Mint(

@@ -47,6 +47,7 @@ contract Solaxy is ISolaxy, XRC20 {
     function _burnWithFee(
         uint256 slxAmount
     ) internal view returns (uint256 burnFee, uint256 burnAmount, uint256 daiAmount) {
+        if (totalSupply() < slxAmount) revert Undersupply();
         burnFee = (slxAmount * 264) / 1000;
         burnAmount = slxAmount - burnFee;
         daiAmount = _curveBond(0, burnAmount, totalSupply());
@@ -59,7 +60,6 @@ contract Solaxy is ISolaxy, XRC20 {
         uint256 totalSupply
     ) internal pure returns (uint256) {
         uint256 a = slxAmount ** 2;
-        uint256 b = 2 * slxAmount * totalSupply;
-        return (((2 * a * x) + b - a) * 125) / (10 ** 23);
+        return (((2 * a * x) + (2 * slxAmount * totalSupply) - a) * 125) / (10 ** 23);
     }
 }

@@ -28,38 +28,43 @@ contract Solaxy is ISolaxy, XRC20 {
 
     function burn(uint256 slxAmount, uint256 burnId) external {
         if (burnId < burnID++) revert StateExpired();
-        (uint256 burnFee, uint256 burnAmount, uint256 daiAmount) = _burnWithFee(slxAmount);
-        transfer(feeAddress, burnFee);
+        (uint256 daiAmount, uint256 burnAmount, uint256 fee) = _exit(slxAmount);
+        transfer(feeAddress, fee);
         _burn(msg.sender, burnAmount);
         if (!DAI.transfer(msg.sender, daiAmount)) revert DaiError();
         emit Burn(burnAmount, daiAmount, DAI.balanceOf(address(this)), block.timestamp);
     }
 
+    function currentPrice() external view returns (uint256) {
+        return (totalSupply() * 25) / 10_000;
+    }
+
     function costToMint(uint256 slxAmount) public view returns (uint256) {
-        return _curveBond(1, slxAmount, totalSupply());
+        return _curveBond(1, slxAmount, totalSupply(), decimals());
     }
 
     function refundOnBurn(uint256 slxAmount) public view returns (uint256 daiAmount) {
-        (, , daiAmount) = _burnWithFee(slxAmount);
+        (daiAmount, , ) = _exit(slxAmount);
         return daiAmount;
     }
 
-    function _burnWithFee(
+    function _exit(
         uint256 slxAmount
-    ) internal view returns (uint256 burnFee, uint256 burnAmount, uint256 daiAmount) {
+    ) internal view returns (uint256 daiAmount, uint256 burnAmount, uint256 fee) {
         if (totalSupply() < slxAmount) revert Undersupply();
-        burnFee = (slxAmount * 264) / 1000;
-        burnAmount = slxAmount - burnFee;
-        daiAmount = _curveBond(0, burnAmount, totalSupply());
-        return (burnFee, burnAmount, daiAmount);
+        fee = (slxAmount * 264) / 1000;
+        burnAmount = slxAmount - fee;
+        daiAmount = _curveBond(0, burnAmount, totalSupply(), decimals());
+        return (daiAmount, burnAmount, fee);
     }
 
     function _curveBond(
         uint256 x,
         uint256 slxAmount,
-        uint256 totalSupply
+        uint256 totalSupply,
+        uint256 decimals
     ) internal pure returns (uint256) {
         uint256 a = slxAmount ** 2;
-        return (((2 * a * x) + (2 * slxAmount * totalSupply) - a) * 125) / (10 ** 23);
+        return (((slxAmount * totalSupply) + (a * x) - (a / 2)) * 25) / 10 ** (decimals + 4);
     }
 }

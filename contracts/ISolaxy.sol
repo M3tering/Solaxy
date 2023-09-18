@@ -21,11 +21,13 @@ interface ISolaxy {
         uint256 timestamp
     );
 
-    function costToMint(uint256 amount) external view returns (uint256);
-
-    function refundOnBurn(uint256 amount) external view returns (uint256);
-
     function mint(uint256 slxAmount, uint256 mintId) external;
 
     function burn(uint256 slxAmount, uint256 burnId) external;
+
+    function currentPrice() external view returns (uint256);
+
+    function costToMint(uint256 slxAmount) external view returns (uint256);
+
+    function refundOnBurn(uint256 slxAmount) external view returns (uint256);
 }

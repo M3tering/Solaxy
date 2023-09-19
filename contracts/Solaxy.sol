@@ -20,51 +20,75 @@ contract Solaxy is ISolaxy, XRC20 {
 
     function mint(uint256 slxAmount, uint256 mintId) external {
         if (mintId < mintID++) revert StateExpired();
-        uint256 daiAmount = costToMint(slxAmount);
-        if (!DAI.transferFrom(msg.sender, address(this), daiAmount)) revert DaiError();
+        uint256 daiAmount = estimateMint(slxAmount);
+
+        if (!DAI.transferFrom(msg.sender, address(this), daiAmount)) revert UntransferredDAI();
         emit Mint(slxAmount, daiAmount, DAI.balanceOf(address(this)), block.timestamp);
+
         _mint(msg.sender, slxAmount);
     }
 
     function burn(uint256 slxAmount, uint256 burnId) external {
         if (burnId < burnID++) revert StateExpired();
-        (uint256 daiAmount, uint256 burnAmount, uint256 fee) = _exit(slxAmount);
-        transfer(feeAddress, fee);
+        (uint256 daiAmount, uint256 burnAmount, uint256 fee) = _estimateBurn(slxAmount);
+
         _burn(msg.sender, burnAmount);
-        if (!DAI.transfer(msg.sender, daiAmount)) revert DaiError();
+
+        if (!transfer(feeAddress, fee)) revert UntransferredSLX();
+        if (!DAI.transfer(msg.sender, daiAmount)) revert UntransferredDAI();
         emit Burn(burnAmount, daiAmount, DAI.balanceOf(address(this)), block.timestamp);
     }
 
     function currentPrice() external view returns (uint256) {
-        return (totalSupply() * 25) / 10_000;
+        return _price(totalSupply());
     }
 
-    function costToMint(uint256 slxAmount) public view returns (uint256) {
-        return _curveBond(1, slxAmount, totalSupply(), decimals());
-    }
+    function estimateMint(uint256 slxAmount) public view returns (uint256 daiAmount) {
+        uint256 initalSupply = totalSupply();
+        uint256 finalSupply = initalSupply + slxAmount;
 
-    function refundOnBurn(uint256 slxAmount) public view returns (uint256 daiAmount) {
-        (daiAmount, , ) = _exit(slxAmount);
+        daiAmount = _collateral(slxAmount, initalSupply, finalSupply, decimals());
         return daiAmount;
     }
 
-    function _exit(
+    function estimateBurn(uint256 slxAmount) public view returns (uint256 daiAmount) {
+        (daiAmount, , ) = _estimateBurn(slxAmount);
+        return daiAmount;
+    }
+
+    function _estimateBurn(
         uint256 slxAmount
     ) internal view returns (uint256 daiAmount, uint256 burnAmount, uint256 fee) {
-        if (totalSupply() < slxAmount) revert Undersupply();
+        uint256 initalSupply = totalSupply();
+        if (initalSupply < slxAmount) revert Undersupply();
+
         fee = (slxAmount * 264) / 1000;
         burnAmount = slxAmount - fee;
-        daiAmount = _curveBond(0, burnAmount, totalSupply(), decimals());
+        uint256 finalSupply = initalSupply - burnAmount;
+
+        daiAmount = _collateral(burnAmount, initalSupply, finalSupply, decimals());
         return (daiAmount, burnAmount, fee);
     }
 
-    function _curveBond(
-        uint256 x,
+    function _collateral(
         uint256 slxAmount,
-        uint256 totalSupply,
+        uint256 initalSupply,
+        uint256 finalSupply,
         uint256 decimals
     ) internal pure returns (uint256) {
-        uint256 a = slxAmount ** 2;
-        return (((slxAmount * totalSupply) + (a * x) - (a / 2)) * 25) / 10 ** (decimals + 4);
+        // area under a liner function == area of trapazoid
+        // A = h * (a + b) / 2; where a = f(x) and h is slxAmount
+
+        uint256 a = _price(initalSupply);
+        uint256 b = _price(finalSupply);
+
+        return (slxAmount * (a + b)) / (2 * 10 ** decimals);
+    }
+
+    function _price(uint256 tokenSupply) internal pure returns (uint256) {
+        // a linear price function;
+        // f(x) = mx + b; where b = 0 and m = 0.0025
+
+        return (tokenSupply * 25) / 10_000;
     }
 }

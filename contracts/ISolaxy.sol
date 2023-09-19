@@ -2,10 +2,11 @@
 pragma solidity ^0.8.19;
 
 interface ISolaxy {
-    error DaiError();
     error Prohibited();
     error Undersupply();
     error StateExpired();
+    error UntransferredDAI();
+    error UntransferredSLX();
 
     event Mint(
         uint256 indexed slxAmount,
@@ -27,7 +28,7 @@ interface ISolaxy {
 
     function currentPrice() external view returns (uint256);
 
-    function costToMint(uint256 slxAmount) external view returns (uint256);
+    function estimateMint(uint256 slxAmount) external view returns (uint256);
 
-    function refundOnBurn(uint256 slxAmount) external view returns (uint256);
+    function estimateBurn(uint256 slxAmount) external view returns (uint256);
 }

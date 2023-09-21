@@ -11,6 +11,7 @@ contract Solaxy is ISolaxy, XRC20 {
     uint256 public burnID;
 
     constructor() ERC20("Solaxy", "SLX") ERC20Permit("Solaxy") {
+        if (address(DAI) == address(0)) revert ZeroAddress();
         feeAddress = msg.sender;
     }
 
@@ -76,7 +77,7 @@ contract Solaxy is ISolaxy, XRC20 {
         uint256 finalSupply,
         uint256 decimals
     ) internal pure returns (uint256) {
-        // area under a liner function == area of trapazoid
+        // area under a liner function == area of trapezoid
         // A = h * (a + b) / 2; where a = f(x) and h is slxAmount
 
         uint256 a = _price(initalSupply);

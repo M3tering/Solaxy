@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 interface ISolaxy {
     error Prohibited();
     error Undersupply();
+    error ZeroAddress();
     error StateExpired();
     error UntransferredDAI();
     error UntransferredSLX();

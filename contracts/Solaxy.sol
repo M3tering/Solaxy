@@ -7,8 +7,6 @@ import "./ISolaxy.sol";
 contract Solaxy is ISolaxy, XRC20 {
     ERC20 public constant DAI = ERC20(0x1CbAd85Aa66Ff3C12dc84C5881886EEB29C1bb9b);
     address public feeAddress;
-    uint256 public mintID;
-    uint256 public burnID;
 
     constructor() ERC20("Solaxy", "SLX") ERC20Permit("Solaxy") {
         if (address(DAI) == address(0)) revert ZeroAddress();
@@ -19,47 +17,46 @@ contract Solaxy is ISolaxy, XRC20 {
         revert Prohibited();
     }
 
-    function mint(uint256 slxAmount, uint256 mintId) external {
-        if (mintId < mintID++) revert StateExpired();
-        uint256 daiAmount = estimateMint(slxAmount);
+    function mint(uint256 slxAmount, uint256 daiAmountInMin) external {
+        uint256 daiAmountIn = estimateMint(slxAmount);
+        if (daiAmountIn > daiAmountInMin) revert AvertSlippage();
 
-        if (!DAI.transferFrom(msg.sender, address(this), daiAmount)) revert UntransferredDAI();
-        emit Mint(slxAmount, daiAmount, DAI.balanceOf(address(this)), block.timestamp);
+        if (!DAI.transferFrom(msg.sender, address(this), daiAmountIn)) revert UntransferredDAI();
+        emit Mint(slxAmount, daiAmountIn, DAI.balanceOf(address(this)), block.timestamp);
 
         _mint(msg.sender, slxAmount);
     }
 
-    function burn(uint256 slxAmount, uint256 burnId) external {
-        if (burnId < burnID++) revert StateExpired();
-        (uint256 daiAmount, uint256 burnAmount, uint256 fee) = _estimateBurn(slxAmount);
+    function burn(uint256 slxAmount, uint256 daiAmountOutMax) external {
+        (uint256 daiAmountOut, uint256 burnAmount, uint256 fee) = _estimateBurn(slxAmount);
+        if (daiAmountOut < daiAmountOutMax) revert AvertSlippage();
 
         _burn(msg.sender, burnAmount);
 
         if (!transfer(feeAddress, fee)) revert UntransferredSLX();
-        if (!DAI.transfer(msg.sender, daiAmount)) revert UntransferredDAI();
-        emit Burn(burnAmount, daiAmount, DAI.balanceOf(address(this)), block.timestamp);
+        if (!DAI.transfer(msg.sender, daiAmountOut)) revert UntransferredDAI();
+        emit Burn(burnAmount, daiAmountOut, DAI.balanceOf(address(this)), block.timestamp);
     }
 
     function currentPrice() external view returns (uint256) {
         return _price(totalSupply());
     }
 
-    function estimateMint(uint256 slxAmount) public view returns (uint256 daiAmount) {
+    function estimateMint(uint256 slxAmount) public view returns (uint256 daiAmountIn) {
         uint256 initalSupply = totalSupply();
         uint256 finalSupply = initalSupply + slxAmount;
 
-        daiAmount = _collateral(slxAmount, initalSupply, finalSupply, decimals());
-        return daiAmount;
+        return _collateral(slxAmount, initalSupply, finalSupply, decimals());
     }
 
-    function estimateBurn(uint256 slxAmount) public view returns (uint256 daiAmount) {
-        (daiAmount, , ) = _estimateBurn(slxAmount);
-        return daiAmount;
+    function estimateBurn(uint256 slxAmount) public view returns (uint256 daiAmountOut) {
+        (daiAmountOut, , ) = _estimateBurn(slxAmount);
+        return daiAmountOut;
     }
 
     function _estimateBurn(
         uint256 slxAmount
-    ) internal view returns (uint256 daiAmount, uint256 burnAmount, uint256 fee) {
+    ) internal view returns (uint256 daiAmountOut, uint256 burnAmount, uint256 fee) {
         uint256 initalSupply = totalSupply();
         if (initalSupply < slxAmount) revert Undersupply();
 
@@ -67,8 +64,8 @@ contract Solaxy is ISolaxy, XRC20 {
         burnAmount = slxAmount - fee;
         uint256 finalSupply = initalSupply - burnAmount;
 
-        daiAmount = _collateral(burnAmount, initalSupply, finalSupply, decimals());
-        return (daiAmount, burnAmount, fee);
+        daiAmountOut = _collateral(burnAmount, initalSupply, finalSupply, decimals());
+        return (daiAmountOut, burnAmount, fee);
     }
 
     function _collateral(

@@ -5,7 +5,7 @@ interface ISolaxy {
     error Prohibited();
     error Undersupply();
     error ZeroAddress();
-    error StateExpired();
+    error AvertSlippage();
     error UntransferredDAI();
     error UntransferredSLX();
 

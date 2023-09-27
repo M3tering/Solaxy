@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+import "./interfaces/ISolaxy.sol";
 import "./XRC20.sol";
-import "./ISolaxy.sol";
 
 contract Solaxy is ISolaxy, XRC20 {
     ERC20 public constant DAI = ERC20(0x1CbAd85Aa66Ff3C12dc84C5881886EEB29C1bb9b);

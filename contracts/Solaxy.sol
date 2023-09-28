@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import {ud} from "@prb/math/src/UD60x18.sol";
+import {UD60x18} from "@prb/math/src/UD60x18.sol";
 
 import "./interfaces/ISolaxy.sol";
 import "./XRC20.sol";
 
 contract Solaxy is ISolaxy, XRC20 {
     ERC20 public constant DAI = ERC20(0x1CbAd85Aa66Ff3C12dc84C5881886EEB29C1bb9b);
-    address public feeAddress;
+    UD60x18 public constant slope = UD60x18.wrap(0.0025e18);
+    UD60x18 public constant _2e18 = UD60x18.wrap(2e18);
+    address public immutable feeAddress;
 
     constructor() ERC20("Solaxy", "SLX") ERC20Permit("Solaxy") {
         if (address(DAI) == address(0)) revert ZeroAddress();
@@ -41,14 +43,18 @@ contract Solaxy is ISolaxy, XRC20 {
     }
 
     function currentPrice() external view returns (uint256) {
-        return _price(totalSupply());
+        return _price(UD60x18.wrap(totalSupply())).intoUint256();
     }
 
     function estimateMint(uint256 slxAmount) public view returns (uint256 daiAmountIn) {
         uint256 initalSupply = totalSupply();
         uint256 finalSupply = initalSupply + slxAmount;
 
-        return _collateral(slxAmount, initalSupply, finalSupply);
+        return _collateral(
+            UD60x18.wrap(slxAmount),
+            UD60x18.wrap(initalSupply),
+            UD60x18.wrap(finalSupply)
+        ).intoUint256();
     }
 
     function estimateBurn(uint256 slxAmount) public view returns (uint256 daiAmountOut) {
@@ -66,28 +72,40 @@ contract Solaxy is ISolaxy, XRC20 {
         burnAmount = slxAmount - fee;
         uint256 finalSupply = initalSupply - burnAmount;
 
-        daiAmountOut = _collateral(burnAmount, initalSupply, finalSupply);
+        daiAmountOut = _collateral(
+            UD60x18.wrap(burnAmount),
+            UD60x18.wrap(initalSupply),
+            UD60x18.wrap(finalSupply)
+        ).intoUint256();
         return (daiAmountOut, burnAmount, fee);
     }
 
     function _collateral(
-        uint256 slxAmount,
-        uint256 initalSupply,
-        uint256 finalSupply
-    ) internal pure returns (uint256) {
+        UD60x18 slxAmount,
+        UD60x18 initalSupply,
+        UD60x18 finalSupply
+    ) internal pure returns (UD60x18) {
         // area under a liner function == area of trapezoid
         // A = h * (a + b) / 2; where a = f(x) and h is slxAmount
 
-        uint256 a = _price(initalSupply);
-        uint256 b = _price(finalSupply);
-
-        return ud(slxAmount).mul(ud(a + b)).div(ud(2e18)).intoUint256();
+        UD60x18 sumPrice = _price(initalSupply).add(_price(finalSupply));
+        return sumPrice.mul(slxAmount).div(_2e18);
     }
 
-    function _price(uint256 tokenSupply) internal pure returns (uint256) {
+    function _amount(UD60x18 initalSupply, UD60x18 collateral) internal pure returns (UD60x18) {
+        // y = sqrt((A + 0.00125x^2) / 0.00125)
+        // y = sqrt((0.00125x^2 - A) / 0.00125)
+        // x = sqrt((2A + 0.0025y^2) / 0.0025)
+
+        UD60x18 d = initalSupply.powu(2).mul(slope);
+        UD60x18 e = collateral.mul(_2e18).add(d);
+        return e.div(slope).sqrt() - initalSupply;
+    }
+
+    function _price(UD60x18 tokenSupply) internal pure returns (UD60x18) {
         // a linear price function;
         // f(x) = mx + b; where b = 0 and m = 0.0025
 
-        return ud(tokenSupply).mul(ud(25)).div(ud(10_000)).intoUint256();
+        return tokenSupply.mul(slope);
     }
 }

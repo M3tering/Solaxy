@@ -1,16 +1,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import {UD60x18} from "@prb/math/src/UD60x18.sol";
+import "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import {UD60x18, ud60x18} from "@prb/math/src/UD60x18.sol";
 
-import "./interfaces/ISolaxy.sol";
 import "./XRC20.sol";
 
-contract Solaxy is ISolaxy, XRC20 {
+error Prohibited();
+error Undersupply();
+error ZeroAddress();
+error AvertSlippage();
+error TransferFailed();
+
+contract Solaxy is XRC20, IERC4626 {
     ERC20 public constant DAI =
         ERC20(0x1CbAd85Aa66Ff3C12dc84C5881886EEB29C1bb9b);
-    UD60x18 public constant slope = UD60x18.wrap(0.0025e18);
-    UD60x18 public constant _2e18 = UD60x18.wrap(2e18);
+    UD60x18 public constant oneEighthBPS = UD60x18.wrap(0.00125e18);
     address public immutable feeAddress;
 
     constructor() ERC20("Solaxy", "SLX") ERC20Permit("Solaxy") {
@@ -22,116 +27,225 @@ contract Solaxy is ISolaxy, XRC20 {
         revert Prohibited();
     }
 
-    function mint(uint256 slxAmount, uint256 daiAmountInMin) external {
-        uint256 daiAmountIn = estimateMint(slxAmount);
-        if (daiAmountIn > daiAmountInMin) revert AvertSlippage();
-
-        if (!DAI.transferFrom(msg.sender, address(this), daiAmountIn))
-            revert UntransferredDAI();
-        emit Mint(
-            slxAmount,
-            daiAmountIn,
-            DAI.balanceOf(address(this)),
-            block.timestamp
-        );
-
-        _mint(msg.sender, slxAmount);
+    function deposit(
+        uint256 assets,
+        address receiver
+    ) external returns (uint256 shares) {
+        shares = previewDeposit(assets);
+        _deposit(receiver, assets, shares);
     }
 
-    function burn(uint256 slxAmount, uint256 daiAmountOutMax) external {
-        (uint256 daiAmountOut, uint256 burnAmount, uint256 fee) = _estimateBurn(
-            slxAmount
-        );
-        if (daiAmountOut < daiAmountOutMax) revert AvertSlippage();
-
-        _burn(msg.sender, burnAmount);
-
-        if (!transfer(feeAddress, fee)) revert UntransferredSLX();
-        if (!DAI.transfer(msg.sender, daiAmountOut)) revert UntransferredDAI();
-        emit Burn(
-            burnAmount,
-            daiAmountOut,
-            DAI.balanceOf(address(this)),
-            block.timestamp
-        );
+    function deposit(
+        uint256 assets,
+        address receiver,
+        uint256 minSharesOut
+    ) external returns (uint256 shares) {
+        shares = previewDeposit(assets);
+        if (shares < minSharesOut) revert AvertSlippage();
+        _deposit(receiver, assets, shares);
     }
 
-    function currentPrice() external view returns (uint256) {
-        return _price(UD60x18.wrap(totalSupply())).intoUint256();
+    function withdraw(
+        uint256 assets,
+        address receiver,
+        address owner
+    ) external returns (uint256 shares) {
+        shares = previewWithdraw(assets);
+        _withdraw(receiver, owner, assets, shares);
     }
 
-    function estimateMint(
-        uint256 slxAmount
-    ) public view returns (uint256 daiAmountIn) {
-        uint256 initalSupply = totalSupply();
-        uint256 finalSupply = initalSupply + slxAmount;
+    function withdraw(
+        uint256 assets,
+        address receiver,
+        address owner,
+        uint256 maxSharesIn
+    ) external returns (uint256 shares) {
+        shares = previewWithdraw(assets);
+        if (shares > maxSharesIn) revert AvertSlippage();
+        _withdraw(receiver, owner, assets, shares);
+    }
 
+    function mint(
+        uint256 shares,
+        address receiver
+    ) external returns (uint256 assets) {
+        assets = previewMint(shares);
+        _deposit(receiver, assets, shares);
+    }
+
+    function mint(
+        uint256 shares,
+        address receiver,
+        uint256 maxAssetsIn
+    ) external returns (uint256 assets) {
+        assets = previewMint(shares);
+        if (assets > maxAssetsIn) revert AvertSlippage();
+        _deposit(receiver, assets, shares);
+    }
+
+    function redeem(
+        uint256 shares,
+        address receiver,
+        address owner
+    ) external returns (uint256 assets) {
+        assets = previewRedeem(shares);
+        _withdraw(receiver, owner, assets, shares);
+    }
+
+    function redeem(
+        uint256 shares,
+        address receiver,
+        address owner,
+        uint256 minAssetsOut
+    ) external returns (uint256 assets) {
+        assets = previewRedeem(shares);
+        if (assets < minAssetsOut) revert AvertSlippage();
+        _withdraw(receiver, owner, assets, shares);
+    }
+
+    function convertToShares(
+        uint256 assets
+    ) external view returns (uint256 shares) {
+        return ud60x18(assets).div(currentPrice()).intoUint256();
+    }
+
+    function convertToAssets(
+        uint256 shares
+    ) external view returns (uint256 assets) {
+        return ud60x18(shares).mul(currentPrice()).intoUint256();
+    }
+
+    function maxWithdraw(
+        address owner
+    ) external view returns (uint256 maxAssets) {
+        return previewWithdraw(balanceOf(owner));
+    }
+
+    function maxRedeem(
+        address owner
+    ) external view returns (uint256 maxShares) {
+        return balanceOf(owner);
+    }
+
+    function maxDeposit(
+        address receiver
+    ) external pure returns (uint256 maxAssets) {
+        return type(uint256).max;
+    }
+
+    function maxMint(
+        address receiver
+    ) external pure returns (uint256 maxShares) {
+        return type(uint256).max;
+    }
+
+    function asset() external pure returns (address assetTokenAddress) {
+        return address(DAI);
+    }
+
+    function totalAssets() public view returns (uint256 totalManagedAssets) {
+        return DAI.balanceOf(address(this));
+    }
+
+    function previewDeposit(
+        uint256 assets
+    ) public view returns (uint256 shares) {
         return
-            _collateral(
-                UD60x18.wrap(slxAmount),
-                UD60x18.wrap(initalSupply),
-                UD60x18.wrap(finalSupply)
+            _previewDeposit(ud60x18(assets), ud60x18(totalSupply()))
+                .intoUint256();
+    }
+
+    function previewWithdraw(
+        uint256 assets
+    ) public view returns (uint256 shares) {
+        return
+            _previewWithdraw(
+                ud60x18(assets).mul(ud60x18(0.97e18)),
+                ud60x18(totalSupply())
             ).intoUint256();
     }
 
-    function estimateBurn(
-        uint256 slxAmount
-    ) public view returns (uint256 daiAmountOut) {
-        (daiAmountOut, , ) = _estimateBurn(slxAmount);
-        return daiAmountOut;
-    }
-
-    function _estimateBurn(
-        uint256 slxAmount
-    )
-        internal
-        view
-        returns (uint256 daiAmountOut, uint256 burnAmount, uint256 fee)
-    {
+    function previewMint(uint256 shares) public view returns (uint256 assets) {
         uint256 initalSupply = totalSupply();
-        if (initalSupply < slxAmount) revert Undersupply();
+        uint256 finalSupply = initalSupply + shares;
 
-        fee = (slxAmount * 264) / 1000;
-        burnAmount = slxAmount - fee;
-        uint256 finalSupply = initalSupply - burnAmount;
-
-        daiAmountOut = _collateral(
-            UD60x18.wrap(burnAmount),
-            UD60x18.wrap(initalSupply),
-            UD60x18.wrap(finalSupply)
-        ).intoUint256();
-        return (daiAmountOut, burnAmount, fee);
+        return
+            _convertToAssets(ud60x18(initalSupply), ud60x18(finalSupply))
+                .intoUint256();
     }
 
-    function _collateral(
-        UD60x18 slxAmount,
-        UD60x18 initalSupply,
-        UD60x18 finalSupply
+    function previewRedeem(
+        uint256 shares
+    ) public view returns (uint256 assets) {
+        uint256 initalSupply = totalSupply();
+        uint256 finalSupply = initalSupply - shares;
+
+        UD60x18 _assets = _convertToAssets(
+            ud60x18(initalSupply),
+            ud60x18(finalSupply)
+        );
+        return _assets.mul(ud60x18(0.97e18)).intoUint256();
+    }
+
+    function currentPrice() public view returns (UD60x18) {
+        return ud60x18(totalSupply()).mul(oneEighthBPS).mul(ud60x18(2e18));
+    }
+
+    function _deposit(
+        address receiver,
+        uint256 assets,
+        uint256 shares
+    ) internal {
+        if (!DAI.transferFrom(msg.sender, address(this), assets))
+            revert TransferFailed();
+        emit Deposit(msg.sender, receiver, assets, shares);
+        _mint(receiver, shares);
+    }
+
+    function _withdraw(
+        address receiver,
+        address owner,
+        uint256 assets,
+        uint256 shares
+    ) internal {
+        if (totalAssets() < assets) revert Undersupply();
+        if (totalSupply() < shares) revert Undersupply();
+        if (msg.sender != owner) {
+            _spendAllowance(owner, msg.sender, shares);
+        }
+        _burn(owner, shares);
+
+        if (!DAI.transfer(receiver, assets)) revert TransferFailed();
+        emit Withdraw(msg.sender, receiver, owner, assets, shares);
+    }
+
+    function _previewDeposit(
+        UD60x18 assets,
+        UD60x18 initalSupply
+    ) internal pure returns (UD60x18 shares) {
+        UD60x18 finalSupply = initalSupply
+            .powu(2)
+            .add(assets.div(oneEighthBPS))
+            .sqrt();
+        return finalSupply - initalSupply;
+    }
+
+    function _previewWithdraw(
+        UD60x18 assets,
+        UD60x18 initalSupply
     ) internal pure returns (UD60x18) {
-        // area under a liner function == area of trapezoid
-        // A = h * (a + b) / 2; where a = f(x) and h is slxAmount
-
-        UD60x18 sumPrice = _price(initalSupply).add(_price(finalSupply));
-        return sumPrice.mul(slxAmount).div(_2e18);
+        UD60x18 finalSupply = initalSupply
+            .powu(2)
+            .sub(assets.div(oneEighthBPS))
+            .sqrt();
+        return initalSupply - finalSupply;
     }
 
-    function _amount(
-        UD60x18 initalSupply,
-        UD60x18 collateral
-    ) internal pure returns (UD60x18) {
-        // y = sqrt((A + 0.00125x^2) / 0.00125)
-        // y = sqrt((0.00125x^2 - A) / 0.00125)
-        // x = sqrt((2A + 0.0025y^2) / 0.0025)
-
-        UD60x18 d = initalSupply.powu(2).mul(slope);
-        UD60x18 e = collateral.mul(_2e18).add(d);
-        return e.div(slope).sqrt() - initalSupply;
-    }
-
-    function _price(UD60x18 tokenSupply) internal pure returns (UD60x18) {
-        // a linear price function;
-        // f(x) = mx + b; where b = 0 and m = 0.0025
-
-        return tokenSupply.mul(slope);
+    function _convertToAssets(
+        UD60x18 juniorSupply,
+        UD60x18 seniorSupply
+    ) internal pure returns (UD60x18 assets) {
+        UD60x18 sqrDiff = seniorSupply.powu(2).sub(juniorSupply.powu(2));
+        return sqrDiff.mul(oneEighthBPS);
     }
 }

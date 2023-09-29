@@ -31,7 +31,7 @@ contract Solaxy is XRC20, IERC4626 {
         uint256 assets,
         address receiver
     ) external returns (uint256 shares) {
-        shares = previewDeposit(assets);
+        shares = _previewDeposit(assets);
         _deposit(receiver, assets, shares);
     }
 
@@ -40,7 +40,7 @@ contract Solaxy is XRC20, IERC4626 {
         address receiver,
         uint256 minSharesOut
     ) external returns (uint256 shares) {
-        shares = previewDeposit(assets);
+        shares = _previewDeposit(assets);
         if (shares < minSharesOut) revert AvertSlippage();
         _deposit(receiver, assets, shares);
     }
@@ -50,8 +50,9 @@ contract Solaxy is XRC20, IERC4626 {
         address receiver,
         address owner
     ) external returns (uint256 shares) {
-        shares = previewWithdraw(assets);
-        _withdraw(receiver, owner, assets, shares);
+        uint256 fee;
+        (shares, fee) = _previewWithdraw(assets);
+        _withdraw(receiver, owner, assets, shares, fee);
     }
 
     function withdraw(
@@ -60,16 +61,17 @@ contract Solaxy is XRC20, IERC4626 {
         address owner,
         uint256 maxSharesIn
     ) external returns (uint256 shares) {
-        shares = previewWithdraw(assets);
+        uint256 fee;
+        (shares, fee) = _previewWithdraw(assets);
         if (shares > maxSharesIn) revert AvertSlippage();
-        _withdraw(receiver, owner, assets, shares);
+        _withdraw(receiver, owner, assets, shares, fee);
     }
 
     function mint(
         uint256 shares,
         address receiver
     ) external returns (uint256 assets) {
-        assets = previewMint(shares);
+        assets = _previewMint(shares);
         _deposit(receiver, assets, shares);
     }
 
@@ -78,7 +80,7 @@ contract Solaxy is XRC20, IERC4626 {
         address receiver,
         uint256 maxAssetsIn
     ) external returns (uint256 assets) {
-        assets = previewMint(shares);
+        assets = _previewMint(shares);
         if (assets > maxAssetsIn) revert AvertSlippage();
         _deposit(receiver, assets, shares);
     }
@@ -88,8 +90,9 @@ contract Solaxy is XRC20, IERC4626 {
         address receiver,
         address owner
     ) external returns (uint256 assets) {
-        assets = previewRedeem(shares);
-        _withdraw(receiver, owner, assets, shares);
+        uint256 fee;
+        (shares, assets, fee) = _previewRedeem(shares);
+        _withdraw(receiver, owner, assets, shares, fee);
     }
 
     function redeem(
@@ -98,9 +101,34 @@ contract Solaxy is XRC20, IERC4626 {
         address owner,
         uint256 minAssetsOut
     ) external returns (uint256 assets) {
-        assets = previewRedeem(shares);
+        uint256 fee;
+        (shares, assets, fee) = _previewRedeem(shares);
         if (assets < minAssetsOut) revert AvertSlippage();
-        _withdraw(receiver, owner, assets, shares);
+        _withdraw(receiver, owner, assets, shares, fee);
+    }
+
+    function previewDeposit(
+        uint256 assets
+    ) external view returns (uint256 shares) {
+        return _previewDeposit(assets);
+    }
+
+    function previewWithdraw(
+        uint256 assets
+    ) external view returns (uint256 shares) {
+        (shares, ) = _previewWithdraw(assets);
+    }
+
+    function previewMint(
+        uint256 shares
+    ) external view returns (uint256 assets) {
+        return _previewMint(shares);
+    }
+
+    function previewRedeem(
+        uint256 shares
+    ) external view returns (uint256 assets) {
+        (, assets, ) = _previewRedeem(shares);
     }
 
     function convertToShares(
@@ -118,7 +146,7 @@ contract Solaxy is XRC20, IERC4626 {
     function maxWithdraw(
         address owner
     ) external view returns (uint256 maxAssets) {
-        return previewWithdraw(balanceOf(owner));
+        (, maxAssets, ) = _previewRedeem(balanceOf(owner));
     }
 
     function maxRedeem(
@@ -147,50 +175,6 @@ contract Solaxy is XRC20, IERC4626 {
         return DAI.balanceOf(address(this));
     }
 
-    function previewDeposit(
-        uint256 assets
-    ) public view returns (uint256 shares) {
-        UD60x18 initalSupply = ud60x18(totalSupply());
-        UD60x18 finalSupply = initalSupply
-            .powu(2)
-            .add(ud60x18(assets).div(oneEighthBPS))
-            .sqrt();
-        return finalSupply.sub(initalSupply).intoUint256();
-    }
-
-    function previewWithdraw(
-        uint256 assets
-    ) public view returns (uint256 shares) {
-        UD60x18 initalSupply = ud60x18(totalSupply());
-        UD60x18 finalSupply = initalSupply
-            .powu(2)
-            .sub(ud60x18(assets).mul(ud60x18(0.97e18)).div(oneEighthBPS))
-            .sqrt();
-        return initalSupply.sub(finalSupply).intoUint256();
-    }
-
-    function previewMint(uint256 shares) public view returns (uint256 assets) {
-        uint256 initalSupply = totalSupply();
-        uint256 finalSupply = initalSupply + shares;
-
-        return
-            _convertToAssets(ud60x18(initalSupply), ud60x18(finalSupply))
-                .intoUint256();
-    }
-
-    function previewRedeem(
-        uint256 shares
-    ) public view returns (uint256 assets) {
-        uint256 initalSupply = totalSupply();
-        uint256 finalSupply = initalSupply - shares;
-
-        UD60x18 _assets = _convertToAssets(
-            ud60x18(initalSupply),
-            ud60x18(finalSupply)
-        );
-        return _assets.mul(ud60x18(0.97e18)).intoUint256();
-    }
-
     function currentPrice() public view returns (UD60x18) {
         return ud60x18(totalSupply()).mul(oneEighthBPS).mul(ud60x18(2e18));
     }
@@ -210,17 +194,70 @@ contract Solaxy is XRC20, IERC4626 {
         address receiver,
         address owner,
         uint256 assets,
-        uint256 shares
+        uint256 shares,
+        uint256 fee
     ) internal {
         if (totalAssets() < assets) revert Undersupply();
         if (totalSupply() < shares) revert Undersupply();
         if (msg.sender != owner) {
-            _spendAllowance(owner, msg.sender, shares);
+            _spendAllowance(owner, msg.sender, shares + fee);
         }
         _burn(owner, shares);
 
+        if (!transfer(feeAddress, fee)) revert TransferFailed();
         if (!DAI.transfer(receiver, assets)) revert TransferFailed();
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
+    }
+
+    function _previewDeposit(uint256 assets) internal view returns (uint256) {
+        UD60x18 initalSupply = ud60x18(totalSupply());
+        UD60x18 finalSupply = initalSupply
+            .powu(2)
+            .add(ud60x18(assets).div(oneEighthBPS))
+            .sqrt();
+        return finalSupply.sub(initalSupply).intoUint256();
+    }
+
+    function _previewWithdraw(
+        uint256 assets
+    ) internal view returns (uint256, uint256) {
+        UD60x18 initalSupply = ud60x18(totalSupply());
+        UD60x18 finalSupply = initalSupply
+            .powu(2)
+            .sub(ud60x18(assets).div(oneEighthBPS))
+            .sqrt();
+        UD60x18 shares = initalSupply.sub(finalSupply);
+        return (
+            shares.intoUint256(),
+            ud60x18(0.359e18).mul(shares).intoUint256()
+        );
+    }
+
+    function _previewMint(
+        uint256 shares
+    ) internal view returns (uint256 assets) {
+        UD60x18 initalSupply = ud60x18(totalSupply());
+        UD60x18 finalSupply = initalSupply.add(ud60x18(shares));
+
+        return _convertToAssets(initalSupply, finalSupply).intoUint256();
+    }
+
+    function _previewRedeem(
+        uint256 shares
+    ) internal view returns (uint256, uint256, uint256) {
+        UD60x18 initalSupply = ud60x18(totalSupply());
+        UD60x18 shares = ud60x18(shares);
+
+        UD60x18 fee = ud60x18(0.264e18).mul(shares);
+        UD60x18 burnShare = shares.sub(fee);
+        UD60x18 finalSupply = initalSupply.sub(burnShare);
+
+        UD60x18 assets = _convertToAssets(initalSupply, finalSupply);
+        return (
+            burnShare.intoUint256(),
+            assets.intoUint256(),
+            fee.intoUint256()
+        );
     }
 
     function _convertToAssets(

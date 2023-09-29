@@ -150,19 +150,23 @@ contract Solaxy is XRC20, IERC4626 {
     function previewDeposit(
         uint256 assets
     ) public view returns (uint256 shares) {
-        return
-            _previewDeposit(ud60x18(assets), ud60x18(totalSupply()))
-                .intoUint256();
+        UD60x18 initalSupply = ud60x18(totalSupply());
+        UD60x18 finalSupply = initalSupply
+            .powu(2)
+            .add(ud60x18(assets).div(oneEighthBPS))
+            .sqrt();
+        return finalSupply.sub(initalSupply).intoUint256();
     }
 
     function previewWithdraw(
         uint256 assets
     ) public view returns (uint256 shares) {
-        return
-            _previewWithdraw(
-                ud60x18(assets).mul(ud60x18(0.97e18)),
-                ud60x18(totalSupply())
-            ).intoUint256();
+        UD60x18 initalSupply = ud60x18(totalSupply());
+        UD60x18 finalSupply = initalSupply
+            .powu(2)
+            .sub(ud60x18(assets).mul(ud60x18(0.97e18)).div(oneEighthBPS))
+            .sqrt();
+        return initalSupply.sub(finalSupply).intoUint256();
     }
 
     function previewMint(uint256 shares) public view returns (uint256 assets) {
@@ -217,28 +221,6 @@ contract Solaxy is XRC20, IERC4626 {
 
         if (!DAI.transfer(receiver, assets)) revert TransferFailed();
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
-    }
-
-    function _previewDeposit(
-        UD60x18 assets,
-        UD60x18 initalSupply
-    ) internal pure returns (UD60x18 shares) {
-        UD60x18 finalSupply = initalSupply
-            .powu(2)
-            .add(assets.div(oneEighthBPS))
-            .sqrt();
-        return finalSupply - initalSupply;
-    }
-
-    function _previewWithdraw(
-        UD60x18 assets,
-        UD60x18 initalSupply
-    ) internal pure returns (UD60x18) {
-        UD60x18 finalSupply = initalSupply
-            .powu(2)
-            .sub(assets.div(oneEighthBPS))
-            .sqrt();
-        return initalSupply - finalSupply;
     }
 
     function _convertToAssets(

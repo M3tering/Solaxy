@@ -1,18 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {UD60x18, ud60x18} from "@prb/math/src/UD60x18.sol";
 
+import "./interfaces/ISolaxy.sol";
 import "./XRC20.sol";
 
-error Prohibited();
-error Undersupply();
-error ZeroAddress();
-error AvertSlippage();
-error TransferFailed();
-
-contract Solaxy is XRC20, IERC4626 {
+contract Solaxy is XRC20, ISolaxy {
     ERC20 public constant DAI =
         ERC20(0x1CbAd85Aa66Ff3C12dc84C5881886EEB29C1bb9b);
     UD60x18 public constant oneEighthBPS = UD60x18.wrap(0.00125e18);
@@ -243,10 +237,10 @@ contract Solaxy is XRC20, IERC4626 {
     }
 
     function _previewRedeem(
-        uint256 shares
+        uint256 shares_
     ) internal view returns (uint256, uint256, uint256) {
         UD60x18 initalSupply = ud60x18(totalSupply());
-        UD60x18 shares = ud60x18(shares);
+        UD60x18 shares = ud60x18(shares_);
 
         UD60x18 fee = ud60x18(0.264e18).mul(shares);
         UD60x18 burnShare = shares.sub(fee);

@@ -110,7 +110,9 @@ contract Solaxy is XRC20, ISolaxy {
     function previewWithdraw(
         uint256 assets
     ) external view returns (uint256 shares) {
-        (shares, ) = _previewWithdraw(assets);
+        uint256 fee;
+        (shares, fee) = _previewWithdraw(assets);
+        return shares + fee;
     }
 
     function previewMint(
@@ -214,16 +216,17 @@ contract Solaxy is XRC20, ISolaxy {
 
     function _previewWithdraw(
         uint256 assets
-    ) internal view returns (uint256, uint256) {
+    ) internal view returns (uint256 shares, uint256 fee) {
+        if (totalAssets() < assets) revert Undersupply();
         UD60x18 initalSupply = ud60x18(totalSupply());
         UD60x18 finalSupply = initalSupply
             .powu(2)
             .sub(ud60x18(assets).div(oneEighthBPS))
             .sqrt();
-        UD60x18 shares = initalSupply.sub(finalSupply);
+        UD60x18 _shares = initalSupply.sub(finalSupply);
         return (
-            shares.intoUint256(),
-            ud60x18(0.359e18).mul(shares).intoUint256()
+            _shares.intoUint256(),
+            ud60x18(0.359e18).mul(_shares).intoUint256()
         );
     }
 
@@ -237,20 +240,21 @@ contract Solaxy is XRC20, ISolaxy {
     }
 
     function _previewRedeem(
-        uint256 shares_
-    ) internal view returns (uint256, uint256, uint256) {
+        uint256 shares
+    ) internal view returns (uint256 burnShare, uint256 assets, uint256 fee) {
+        if (totalSupply() < shares) revert Undersupply();
         UD60x18 initalSupply = ud60x18(totalSupply());
-        UD60x18 shares = ud60x18(shares_);
+        UD60x18 _shares = ud60x18(shares);
 
-        UD60x18 fee = ud60x18(0.264e18).mul(shares);
-        UD60x18 burnShare = shares.sub(fee);
-        UD60x18 finalSupply = initalSupply.sub(burnShare);
+        UD60x18 _fee = ud60x18(0.264e18).mul(_shares);
+        UD60x18 _burnShare = _shares.sub(_fee);
+        UD60x18 finalSupply = initalSupply.sub(_burnShare);
 
-        UD60x18 assets = _convertToAssets(initalSupply, finalSupply);
+        UD60x18 _assets = _convertToAssets(finalSupply, initalSupply);
         return (
-            burnShare.intoUint256(),
-            assets.intoUint256(),
-            fee.intoUint256()
+            _burnShare.intoUint256(),
+            _assets.intoUint256(),
+            _fee.intoUint256()
         );
     }
 

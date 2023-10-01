@@ -27,6 +27,7 @@ contract Solaxy is XRC20, ISolaxy {
     ) external returns (uint256 shares) {
         shares = _previewDeposit(assets);
         _deposit(receiver, assets, shares);
+        return shares;
     }
 
     function deposit(
@@ -37,6 +38,7 @@ contract Solaxy is XRC20, ISolaxy {
         shares = _previewDeposit(assets);
         if (shares < minSharesOut) revert AvertSlippage();
         _deposit(receiver, assets, shares);
+        return shares;
     }
 
     function withdraw(
@@ -47,6 +49,7 @@ contract Solaxy is XRC20, ISolaxy {
         uint256 fee;
         (shares, fee) = _previewWithdraw(assets);
         _withdraw(receiver, owner, assets, shares, fee);
+        return shares;
     }
 
     function withdraw(
@@ -59,6 +62,7 @@ contract Solaxy is XRC20, ISolaxy {
         (shares, fee) = _previewWithdraw(assets);
         if (shares > maxSharesIn) revert AvertSlippage();
         _withdraw(receiver, owner, assets, shares, fee);
+        return shares;
     }
 
     function mint(
@@ -67,6 +71,7 @@ contract Solaxy is XRC20, ISolaxy {
     ) external returns (uint256 assets) {
         assets = _previewMint(shares);
         _deposit(receiver, assets, shares);
+        return assets;
     }
 
     function mint(
@@ -77,6 +82,7 @@ contract Solaxy is XRC20, ISolaxy {
         assets = _previewMint(shares);
         if (assets > maxAssetsIn) revert AvertSlippage();
         _deposit(receiver, assets, shares);
+        return assets;
     }
 
     function redeem(
@@ -87,6 +93,7 @@ contract Solaxy is XRC20, ISolaxy {
         uint256 fee;
         (shares, assets, fee) = _previewRedeem(shares);
         _withdraw(receiver, owner, assets, shares, fee);
+        return assets;
     }
 
     function redeem(
@@ -99,6 +106,7 @@ contract Solaxy is XRC20, ISolaxy {
         (shares, assets, fee) = _previewRedeem(shares);
         if (assets < minAssetsOut) revert AvertSlippage();
         _withdraw(receiver, owner, assets, shares, fee);
+        return assets;
     }
 
     function previewDeposit(
@@ -111,6 +119,7 @@ contract Solaxy is XRC20, ISolaxy {
         uint256 assets
     ) external view returns (uint256 shares) {
         (shares, ) = _previewWithdraw(assets);
+        return shares;
     }
 
     function previewMint(
@@ -123,6 +132,7 @@ contract Solaxy is XRC20, ISolaxy {
         uint256 shares
     ) external view returns (uint256 assets) {
         (, assets, ) = _previewRedeem(shares);
+        return assets;
     }
 
     function convertToShares(
@@ -141,6 +151,7 @@ contract Solaxy is XRC20, ISolaxy {
         address owner
     ) external view returns (uint256 maxAssets) {
         (, maxAssets, ) = _previewRedeem(balanceOf(owner));
+        return maxAssets;
     }
 
     function maxRedeem(

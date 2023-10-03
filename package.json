@@ -2,5 +2,12 @@
   "dependencies": {
     "@openzeppelin/contracts": "^4.9.3",
     "@prb/math": "^4.0.1"
+  },
+  "devDependencies": {
+    "@openzeppelin/test-helpers": "^0.5.16",
+    "@truffle/hdwallet-provider": "^2.1.15",
+    "chai": "^4.3.10",
+    "chai-bn": "^0.3.1",
+    "dotenv": "^16.3.1"
   }
 }

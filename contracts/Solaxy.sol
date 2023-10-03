@@ -151,15 +151,11 @@ contract Solaxy is XRC20, ISolaxy {
         return balanceOf(owner);
     }
 
-    function maxDeposit(
-        address receiver
-    ) external pure returns (uint256 maxAssets) {
+    function maxDeposit(address) external pure returns (uint256 maxAssets) {
         return type(uint256).max;
     }
 
-    function maxMint(
-        address receiver
-    ) external pure returns (uint256 maxShares) {
+    function maxMint(address) external pure returns (uint256 maxShares) {
         return type(uint256).max;
     }
 

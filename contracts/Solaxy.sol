@@ -12,9 +12,12 @@ contract Solaxy is XRC20, ISolaxy {
     UD60x18 public constant oneEighthBPS = UD60x18.wrap(0.00125e18);
     address public immutable feeAddress;
 
-    constructor() ERC20("Solaxy", "SLX") ERC20Permit("Solaxy") {
+    constructor(
+        address feeAccount
+    ) ERC20("Solaxy", "SLX") ERC20Permit("Solaxy") {
         if (address(DAI) == address(0)) revert ZeroAddress();
-        feeAddress = msg.sender;
+        if (feeAccount == address(0)) revert ZeroAddress();
+        feeAddress = feeAccount;
     }
 
     receive() external payable {
@@ -130,12 +133,14 @@ contract Solaxy is XRC20, ISolaxy {
     function convertToShares(
         uint256 assets
     ) external view returns (uint256 shares) {
+        if (totalAssets() < assets) revert Undersupply();
         return ud60x18(assets).div(currentPrice()).intoUint256();
     }
 
     function convertToAssets(
         uint256 shares
     ) external view returns (uint256 assets) {
+        if (totalSupply() < shares) revert Undersupply();
         return ud60x18(shares).mul(currentPrice()).intoUint256();
     }
 

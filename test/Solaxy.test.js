@@ -1,7 +1,7 @@
 const { expectEvent, BN } = require("@openzeppelin/test-helpers");
 const { expect } = require("chai");
 
-const DAI = artifacts.require("DAI");
+const DAI = artifacts.require("__test_run_DAI");
 const Solaxy = artifacts.require("Solaxy");
 
 contract("Solaxy", (accounts) => {
@@ -16,8 +16,8 @@ contract("Solaxy", (accounts) => {
   const slxAmountIn = new BN("6795000000000000000"); // 6.795 SLX
 
   beforeEach(async () => {
-    dai = await DAI.new();
-    solaxy = await Solaxy.new(dai.address, accounts[9]);
+    dai = await DAI.at("0xC7642f4E1817E9c21d35002e3Bb72b262bF82C3B");
+    solaxy = await Solaxy.new(accounts[9]);
   });
 
   it("should allow deposit, withdrawal, and converting assets to shares", async () => {

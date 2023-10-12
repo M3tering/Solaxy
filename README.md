@@ -42,8 +42,11 @@ The project is filed in the following directory structure:
 
 ### How to Run Tests
 1. Ensure you have Truffle installed: `npm install -g truffle`
+1. Install an run **Ganache**; a local ethereum blockchain environment 
 1. Navigate to the project directory in your terminal.
-1. Run `npm install` to get the other dependencies 
+1. Run `npm install` to get the other dependencies
+1. To deploy the DAI contract, run `truffle migrate`
+1. Update `contracts/Solaxy.sol` & `test/Solaxy.test.js` with the DAI deployment address
 1. Run `truffle test` to execute the Mocha tests.
 
 ### License

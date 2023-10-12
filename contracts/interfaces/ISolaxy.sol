@@ -6,7 +6,7 @@ import {UD60x18} from "@prb/math/src/UD60x18.sol";
 
 error Prohibited();
 error Undersupply();
-error ZeroAddress();
+error CannotBeZero();
 error AvertSlippage();
 error TransferFailed();
 

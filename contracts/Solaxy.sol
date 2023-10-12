@@ -23,8 +23,8 @@ contract Solaxy is XRC20, ISolaxy {
     constructor(
         address feeAccount
     ) ERC20("Solaxy", "SLX") ERC20Permit("Solaxy") {
-        if (address(DAI) == address(0)) revert ZeroAddress();
-        if (feeAccount == address(0)) revert ZeroAddress();
+        if (address(DAI) == address(0)) revert CannotBeZero();
+        if (feeAccount == address(0)) revert CannotBeZero();
         feeAddress = feeAccount;
     }
 
@@ -229,6 +229,8 @@ contract Solaxy is XRC20, ISolaxy {
         uint256 assets,
         uint256 shares
     ) internal {
+        if (assets == 0) revert CannotBeZero();
+        if (shares == 0) revert CannotBeZero();
         if (!DAI.transferFrom(msg.sender, address(this), assets))
             revert TransferFailed();
         emit Deposit(msg.sender, receiver, assets, shares);
@@ -243,6 +245,9 @@ contract Solaxy is XRC20, ISolaxy {
         uint256 shares,
         uint256 fee
     ) internal {
+        if (fee == 0) revert CannotBeZero();
+        if (assets == 0) revert CannotBeZero();
+        if (shares == 0) revert CannotBeZero();
         if (totalAssets() < assets) revert Undersupply();
         if (totalSupply() < shares) revert Undersupply();
         if (msg.sender != owner) {

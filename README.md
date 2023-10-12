@@ -7,7 +7,7 @@ A token bonding curve is a mathematical formula that defines the token's price b
 
 ### Linear Bonding Curve Formula
 The price of tokens in a linear bonding curve is calculated as follows: 
-$$ f(x) = mx + c $$ 
+$$f(x) = mx + c$$ 
 
 Here, the slope (`m`) represents the rate at which the price changes concerning the supply. In Solaxy's case, the slope is set to 25 bps (`0.0025`), determining the curve's steepness. Visit the [gitbook docs](https://m3tering.whynotswitch.com/token-economics/mint-and-distribution) to learn more.
 

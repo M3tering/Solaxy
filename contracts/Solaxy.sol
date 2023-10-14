@@ -39,21 +39,7 @@ contract Solaxy is XRC20, ISolaxy {
         uint256 assets,
         address receiver
     ) external returns (uint256 shares) {
-        shares = previewDeposit(assets, totalSupply());
-        _deposit(receiver, assets, shares);
-    }
-
-    /**
-     * @dev Implements {IERC4626-deposit} and protects againts slippage by specifying a minimum number of shares to receive.
-     * @param minSharesOut The minimum number of shares the sender expects to receive.
-     */
-    function deposit(
-        uint256 assets,
-        address receiver,
-        uint256 minSharesOut
-    ) external returns (uint256 shares) {
-        shares = previewDeposit(assets, totalSupply());
-        if (shares < minSharesOut) revert AvertSlippage();
+        shares = computeDeposit(assets, totalSupply());
         _deposit(receiver, assets, shares);
     }
 
@@ -64,23 +50,7 @@ contract Solaxy is XRC20, ISolaxy {
         address owner
     ) external returns (uint256 shares) {
         uint256 fee;
-        (shares, fee) = previewWithdraw(assets, totalSupply());
-        _withdraw(receiver, owner, assets, shares, fee);
-    }
-
-    /**
-     * @dev Implements {IERC4626-withdraw} and protects againts slippage by specifying a maximum number of shares to burn.
-     * @param maxSharesIn The maximum number of shares the sender is willing to burn.
-     */
-    function withdraw(
-        uint256 assets,
-        address receiver,
-        address owner,
-        uint256 maxSharesIn
-    ) external returns (uint256 shares) {
-        uint256 fee;
-        (shares, fee) = previewWithdraw(assets, totalSupply());
-        if (shares > maxSharesIn) revert AvertSlippage();
+        (shares, fee) = computeWithdraw(assets, totalSupply());
         _withdraw(receiver, owner, assets, shares, fee);
     }
 
@@ -89,21 +59,7 @@ contract Solaxy is XRC20, ISolaxy {
         uint256 shares,
         address receiver
     ) external returns (uint256 assets) {
-        assets = previewMint(shares, totalSupply());
-        _deposit(receiver, assets, shares);
-    }
-
-    /**
-     * @dev Implements {IERC4626-deposit} and protects againts slippage by specifying a maximum amount of assets to deposit.
-     * @param maxAssetsIn The maximum amount of assets the sender is willing to deposit.
-     */
-    function mint(
-        uint256 shares,
-        address receiver,
-        uint256 maxAssetsIn
-    ) external returns (uint256 assets) {
-        assets = previewMint(shares, totalSupply());
-        if (assets > maxAssetsIn) revert AvertSlippage();
+        assets = computeMint(shares, totalSupply());
         _deposit(receiver, assets, shares);
     }
 
@@ -114,22 +70,66 @@ contract Solaxy is XRC20, ISolaxy {
         address owner
     ) external returns (uint256 assets) {
         uint256 fee;
-        (shares, assets, fee) = previewRedeem(shares, totalSupply());
+        (shares, assets, fee) = computeRedeem(shares, totalSupply());
         _withdraw(receiver, owner, assets, shares, fee);
+    }
+
+    /**
+     * @dev Implements {IERC4626-deposit} and protects againts slippage by specifying a minimum number of shares to receive.
+     * @param minSharesOut The minimum number of shares the sender expects to receive.
+     */
+    function safeDeposit(
+        uint256 assets,
+        address receiver,
+        uint256 minSharesOut
+    ) external returns (uint256 shares) {
+        shares = computeDeposit(assets, totalSupply());
+        if (shares < minSharesOut) revert AvertSlippage();
+        _deposit(receiver, assets, shares);
+    }
+
+    /**
+     * @dev Implements {IERC4626-withdraw} and protects againts slippage by specifying a maximum number of shares to burn.
+     * @param maxSharesIn The maximum number of shares the sender is willing to burn.
+     */
+    function safeWithdraw(
+        uint256 assets,
+        address receiver,
+        address owner,
+        uint256 maxSharesIn
+    ) external returns (uint256 shares) {
+        uint256 fee;
+        (shares, fee) = computeWithdraw(assets, totalSupply());
+        if (shares > maxSharesIn) revert AvertSlippage();
+        _withdraw(receiver, owner, assets, shares, fee);
+    }
+
+    /**
+     * @dev Implements {IERC4626-deposit} and protects againts slippage by specifying a maximum amount of assets to deposit.
+     * @param maxAssetsIn The maximum amount of assets the sender is willing to deposit.
+     */
+    function safeMint(
+        uint256 shares,
+        address receiver,
+        uint256 maxAssetsIn
+    ) external returns (uint256 assets) {
+        assets = computeMint(shares, totalSupply());
+        if (assets > maxAssetsIn) revert AvertSlippage();
+        _deposit(receiver, assets, shares);
     }
 
     /**
      * @dev Implements {IERC4626-redeem} and protects againts slippage by specifying a minimum amount of assets to receive.
      * @param minAssetsOut The minimum amount of assets the sender expects to receive.
      */
-    function redeem(
+    function safeRedeem(
         uint256 shares,
         address receiver,
         address owner,
         uint256 minAssetsOut
     ) external returns (uint256 assets) {
         uint256 fee;
-        (shares, assets, fee) = previewRedeem(shares, totalSupply());
+        (shares, assets, fee) = computeRedeem(shares, totalSupply());
         if (assets < minAssetsOut) revert AvertSlippage();
         _withdraw(receiver, owner, assets, shares, fee);
     }
@@ -138,7 +138,7 @@ contract Solaxy is XRC20, ISolaxy {
     function previewDeposit(
         uint256 assets
     ) external view returns (uint256 shares) {
-        return previewDeposit(assets, totalSupply());
+        return computeDeposit(assets, totalSupply());
     }
 
     /** @dev See {IERC4626-previewWithdraw}. */
@@ -147,7 +147,7 @@ contract Solaxy is XRC20, ISolaxy {
     ) external view returns (uint256 shares) {
         uint256 fee;
         if (totalAssets() < assets) revert Undersupply();
-        (shares, fee) = previewWithdraw(assets, totalSupply());
+        (shares, fee) = computeWithdraw(assets, totalSupply());
         return shares + fee;
     }
 
@@ -155,7 +155,7 @@ contract Solaxy is XRC20, ISolaxy {
     function previewMint(
         uint256 shares
     ) external view returns (uint256 assets) {
-        return previewMint(shares, totalSupply());
+        return computeMint(shares, totalSupply());
     }
 
     /** @dev See {IERC4626-previewRedeem}. */
@@ -163,7 +163,7 @@ contract Solaxy is XRC20, ISolaxy {
         uint256 shares
     ) external view returns (uint256 assets) {
         if (totalSupply() < shares) revert Undersupply();
-        (, assets, ) = previewRedeem(shares, totalSupply());
+        (, assets, ) = computeRedeem(shares, totalSupply());
     }
 
     /** @dev See {IERC4626-convertToShares}. */
@@ -186,7 +186,7 @@ contract Solaxy is XRC20, ISolaxy {
     function maxWithdraw(
         address owner
     ) external view returns (uint256 maxAssets) {
-        (, maxAssets, ) = previewRedeem(balanceOf(owner), totalSupply());
+        (, maxAssets, ) = computeRedeem(balanceOf(owner), totalSupply());
     }
 
     /** @dev See {IERC4626-maxRedeem}. */
@@ -235,7 +235,7 @@ contract Solaxy is XRC20, ISolaxy {
      * @param totalSupply The total supply of shares in the system.
      * @return shares The calculated number of shares minted for the deposited assets.
      */
-    function previewDeposit(
+    function computeDeposit(
         uint256 assets,
         uint256 totalSupply
     ) public pure returns (uint256 shares) {
@@ -259,7 +259,7 @@ contract Solaxy is XRC20, ISolaxy {
      * @return shares The calculated number of shares to be burned in the withdrawal.
      * @return fee The exit fee included in the required shares.
      */
-    function previewWithdraw(
+    function computeWithdraw(
         uint256 assets,
         uint256 totalSupply
     ) public pure returns (uint256 shares, uint256 fee) {
@@ -278,7 +278,7 @@ contract Solaxy is XRC20, ISolaxy {
      * @param totalSupply The total supply of shares in the system.
      * @return assets The computed assets as a uint256 value.
      */
-    function previewMint(
+    function computeMint(
         uint256 shares,
         uint256 totalSupply
     ) public pure returns (uint256 assets) {
@@ -298,7 +298,7 @@ contract Solaxy is XRC20, ISolaxy {
      * @return assets The computed assets as a uint256 value.
      * @return fee The exit fee deducted from the redeemed assets as a uint256 value.
      */
-    function previewRedeem(
+    function computeRedeem(
         uint256 shares,
         uint256 totalSupply
     ) public pure returns (uint256 burnShare, uint256 assets, uint256 fee) {

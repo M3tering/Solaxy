@@ -13,6 +13,7 @@ import "./XRC20.sol";
 contract Solaxy is XRC20, ISolaxy {
     ERC20 public constant DAI =
         ERC20(0x1CbAd85Aa66Ff3C12dc84C5881886EEB29C1bb9b);
+    UD60x18 public constant slope = UD60x18.wrap(0.0025e18);
     UD60x18 public constant halfSlope = UD60x18.wrap(0.00125e18);
     address public immutable feeAddress;
 
@@ -38,7 +39,7 @@ contract Solaxy is XRC20, ISolaxy {
         uint256 assets,
         address receiver
     ) external returns (uint256 shares) {
-        shares = _previewDeposit(assets);
+        shares = previewDeposit(assets, totalSupply());
         _deposit(receiver, assets, shares);
     }
 
@@ -51,7 +52,7 @@ contract Solaxy is XRC20, ISolaxy {
         address receiver,
         uint256 minSharesOut
     ) external returns (uint256 shares) {
-        shares = _previewDeposit(assets);
+        shares = previewDeposit(assets, totalSupply());
         if (shares < minSharesOut) revert AvertSlippage();
         _deposit(receiver, assets, shares);
     }
@@ -63,7 +64,7 @@ contract Solaxy is XRC20, ISolaxy {
         address owner
     ) external returns (uint256 shares) {
         uint256 fee;
-        (shares, fee) = _previewWithdraw(assets);
+        (shares, fee) = previewWithdraw(assets, totalSupply());
         _withdraw(receiver, owner, assets, shares, fee);
     }
 
@@ -78,7 +79,7 @@ contract Solaxy is XRC20, ISolaxy {
         uint256 maxSharesIn
     ) external returns (uint256 shares) {
         uint256 fee;
-        (shares, fee) = _previewWithdraw(assets);
+        (shares, fee) = previewWithdraw(assets, totalSupply());
         if (shares > maxSharesIn) revert AvertSlippage();
         _withdraw(receiver, owner, assets, shares, fee);
     }
@@ -88,7 +89,7 @@ contract Solaxy is XRC20, ISolaxy {
         uint256 shares,
         address receiver
     ) external returns (uint256 assets) {
-        assets = _previewMint(shares);
+        assets = previewMint(shares, totalSupply());
         _deposit(receiver, assets, shares);
     }
 
@@ -101,7 +102,7 @@ contract Solaxy is XRC20, ISolaxy {
         address receiver,
         uint256 maxAssetsIn
     ) external returns (uint256 assets) {
-        assets = _previewMint(shares);
+        assets = previewMint(shares, totalSupply());
         if (assets > maxAssetsIn) revert AvertSlippage();
         _deposit(receiver, assets, shares);
     }
@@ -113,7 +114,7 @@ contract Solaxy is XRC20, ISolaxy {
         address owner
     ) external returns (uint256 assets) {
         uint256 fee;
-        (shares, assets, fee) = _previewRedeem(shares);
+        (shares, assets, fee) = previewRedeem(shares, totalSupply());
         _withdraw(receiver, owner, assets, shares, fee);
     }
 
@@ -128,7 +129,7 @@ contract Solaxy is XRC20, ISolaxy {
         uint256 minAssetsOut
     ) external returns (uint256 assets) {
         uint256 fee;
-        (shares, assets, fee) = _previewRedeem(shares);
+        (shares, assets, fee) = previewRedeem(shares, totalSupply());
         if (assets < minAssetsOut) revert AvertSlippage();
         _withdraw(receiver, owner, assets, shares, fee);
     }
@@ -137,7 +138,7 @@ contract Solaxy is XRC20, ISolaxy {
     function previewDeposit(
         uint256 assets
     ) external view returns (uint256 shares) {
-        return _previewDeposit(assets);
+        return previewDeposit(assets, totalSupply());
     }
 
     /** @dev See {IERC4626-previewWithdraw}. */
@@ -145,7 +146,8 @@ contract Solaxy is XRC20, ISolaxy {
         uint256 assets
     ) external view returns (uint256 shares) {
         uint256 fee;
-        (shares, fee) = _previewWithdraw(assets);
+        if (totalAssets() < assets) revert Undersupply();
+        (shares, fee) = previewWithdraw(assets, totalSupply());
         return shares + fee;
     }
 
@@ -153,14 +155,15 @@ contract Solaxy is XRC20, ISolaxy {
     function previewMint(
         uint256 shares
     ) external view returns (uint256 assets) {
-        return _previewMint(shares);
+        return previewMint(shares, totalSupply());
     }
 
     /** @dev See {IERC4626-previewRedeem}. */
     function previewRedeem(
         uint256 shares
     ) external view returns (uint256 assets) {
-        (, assets, ) = _previewRedeem(shares);
+        if (totalSupply() < shares) revert Undersupply();
+        (, assets, ) = previewRedeem(shares, totalSupply());
     }
 
     /** @dev See {IERC4626-convertToShares}. */
@@ -183,7 +186,7 @@ contract Solaxy is XRC20, ISolaxy {
     function maxWithdraw(
         address owner
     ) external view returns (uint256 maxAssets) {
-        (, maxAssets, ) = _previewRedeem(balanceOf(owner));
+        (, maxAssets, ) = previewRedeem(balanceOf(owner), totalSupply());
     }
 
     /** @dev See {IERC4626-maxRedeem}. */
@@ -214,13 +217,99 @@ contract Solaxy is XRC20, ISolaxy {
     }
 
     /**
-     * @notice Computes the current price of the shares, using the linear slope function: f(x) = mx + c,
-     * where `x` is the total supply of shares, `m`, the slope is 25 basis points and `c` is 0.
+     * @notice Computes the current price of a share, as price = totalSupply * slope + 0
+     * which is derived from the linear slope function: f(x) = mx + c,
+     * where `x` is the supply of shares, the slope `m` is 0.0025, and `c` is a constant term = 0.
      *
      * @return price The current price along the bonding curve.
      */
     function currentPrice() public view returns (UD60x18) {
-        return ud60x18(totalSupply()).mul(halfSlope).mul(ud60x18(2e18));
+        return ud60x18(totalSupply()).mul(slope);
+    }
+
+    /**
+     * @notice Computes the number of shares to be minted for a given amount of assets to be deposited.
+     * Utilizes the equation y = sqrt((0.00125x^2 + A) / 0.00125) - x, derived from the trapezium area formula.
+     *
+     * @param assets The amount of assets to be deposited.
+     * @param totalSupply The total supply of shares in the system.
+     * @return shares The calculated number of shares minted for the deposited assets.
+     */
+    function previewDeposit(
+        uint256 assets,
+        uint256 totalSupply
+    ) public pure returns (uint256 shares) {
+        UD60x18 initialSupply = ud60x18(totalSupply);
+        shares = initialSupply
+            .powu(2)
+            .add(ud60x18(assets).div(halfSlope))
+            .sqrt()
+            .sub(initialSupply)
+            .intoUint256();
+    }
+
+    /**
+     * @notice Computes the number of shares to be burned and the exit fee for a given amount of assets to be withdrawn.
+     * Utilizes the equation y = x - sqrt((0.00125x^2 - A) / 0.00125), derived from the trapezium area formula.
+     * Applies a 35.9% exit fee on the calculated shares.
+     *
+     * @dev Throws an error if the total assets are less than the specified withdrawal amount.
+     * @param assets The amount of assets to be withdrawn.
+     * @param totalSupply The total supply of shares in the system.
+     * @return shares The calculated number of shares to be burned in the withdrawal.
+     * @return fee The exit fee included in the required shares.
+     */
+    function previewWithdraw(
+        uint256 assets,
+        uint256 totalSupply
+    ) public pure returns (uint256 shares, uint256 fee) {
+        UD60x18 initialSupply = ud60x18(totalSupply);
+        UD60x18 withdrawnShares = initialSupply.sub(
+            initialSupply.powu(2).sub(ud60x18(assets).div(halfSlope)).sqrt()
+        );
+
+        shares = withdrawnShares.intoUint256();
+        fee = withdrawnShares.mul(ud60x18(0.359e18)).intoUint256();
+    }
+
+    /**
+     * @notice Computes the assets to be minted for a given number of shares using _convertToAssets.
+     * @param shares The number of shares to be minted.
+     * @param totalSupply The total supply of shares in the system.
+     * @return assets The computed assets as a uint256 value.
+     */
+    function previewMint(
+        uint256 shares,
+        uint256 totalSupply
+    ) public pure returns (uint256 assets) {
+        assets = _convertToAssets(
+            ud60x18(totalSupply),
+            ud60x18(totalSupply + shares)
+        ).intoUint256();
+    }
+
+    /**
+     * @notice Computes the assets, burnShares, and exit fee for a given number of shares to be redeemed.
+     * It calculates the assets to be redeemed using the _convertToAssets function and applies a 26.4% exit fee.
+     *
+     * @param shares The number of shares to be redeemed.
+     * @param totalSupply The total supply of shares in the system.
+     * @return burnShare The number of shares to be burned.
+     * @return assets The computed assets as a uint256 value.
+     * @return fee The exit fee deducted from the redeemed assets as a uint256 value.
+     */
+    function previewRedeem(
+        uint256 shares,
+        uint256 totalSupply
+    ) public pure returns (uint256 burnShare, uint256 assets, uint256 fee) {
+        UD60x18 _fee = ud60x18(shares).mul(ud60x18(0.264e18));
+        UD60x18 _burnShare = ud60x18(shares).sub(_fee);
+        UD60x18 finalSupply = ud60x18(totalSupply).sub(_burnShare);
+
+        assets = _convertToAssets(finalSupply, ud60x18(totalSupply))
+            .intoUint256();
+        burnShare = _burnShare.intoUint256();
+        fee = _fee.intoUint256();
     }
 
     /** @dev Deposit/mint common workflow. */
@@ -258,90 +347,6 @@ contract Solaxy is XRC20, ISolaxy {
         if (!transfer(feeAddress, fee)) revert TransferFailed();
         if (!DAI.transfer(receiver, assets)) revert TransferFailed();
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
-    }
-
-    /**
-     * @notice Computes the number of shares to be minted for a given amount of assets to be deposited.
-     * Utilizes the equation y = sqrt((0.00125x^2 + A) / 0.00125) - x, derived from the trapezium area formula.
-     *
-     * @param assets The amount of assets to be deposited.
-     * @return shares The calculated number of shares minted for the deposited assets.
-     */
-    function _previewDeposit(
-        uint256 assets
-    ) internal view returns (uint256 shares) {
-        UD60x18 initalSupply = ud60x18(totalSupply());
-        shares = initalSupply
-            .powu(2)
-            .add(ud60x18(assets).div(halfSlope))
-            .sqrt()
-            .sub(initalSupply)
-            .intoUint256();
-    }
-
-    /**
-     * @notice Computes the number of shares to be burned and the exit fee for a given amount of assets to be withdrawn.
-     * Utilizes the equation y = x - sqrt((0.00125x^2 - A) / 0.00125), derived from the trapezium area formula.
-     * Applies a 35.9% exit fee on the calculated shares.
-     *
-     * @dev Throws an error if the total assets are less than the specified withdrawal amount.
-     * @param assets The amount of assets to be withdrawn.
-     * @return shares The calculated number of shares to be burned in the withdrawal.
-     * @return fee The exit fee included in the required shares.
-     */
-    function _previewWithdraw(
-        uint256 assets
-    ) internal view returns (uint256 shares, uint256 fee) {
-        if (totalAssets() < assets) revert Undersupply();
-        UD60x18 initialSupply = ud60x18(totalSupply());
-        UD60x18 withdrawnShares = initialSupply.sub(
-            initialSupply.powu(2).sub(ud60x18(assets).div(halfSlope)).sqrt()
-        );
-
-        shares = withdrawnShares.intoUint256();
-        fee = withdrawnShares.mul(ud60x18(0.359e18)).intoUint256();
-    }
-
-    /**
-     * @notice Computes the assets to be minted for a given number of shares using _convertToAssets.
-     * @param shares The number of shares to be minted.
-     * @return assets The computed assets as a uint256 value.
-     */
-    function _previewMint(
-        uint256 shares
-    ) internal view returns (uint256 assets) {
-        return
-            _convertToAssets(
-                ud60x18(totalSupply()),
-                ud60x18(totalSupply() + shares)
-            ).intoUint256();
-    }
-
-    /**
-     * @notice Computes the assets, burnShares, and exit fee for a given number of shares to be redeemed.
-     * It calculates the assets to be redeemed using the _convertToAssets function and applies a 26.4% exit fee.
-     *
-     * @param shares The number of shares to be redeemed.
-     * @return burnShare The number of shares to be burned.
-     * @return assets The computed assets as a uint256 value.
-     * @return fee The exit fee deducted from the redeemed assets as a uint256 value.
-     */
-    function _previewRedeem(
-        uint256 shares
-    ) internal view returns (uint256 burnShare, uint256 assets, uint256 fee) {
-        if (totalSupply() < shares) revert Undersupply();
-        UD60x18 _fee = ud60x18(shares).mul(ud60x18(0.264e18));
-        UD60x18 _burnShare = ud60x18(shares).sub(_fee);
-
-        UD60x18 initalSupply = ud60x18(totalSupply());
-        UD60x18 finalSupply = initalSupply.sub(_burnShare);
-
-        UD60x18 _assets = _convertToAssets(finalSupply, initalSupply);
-        return (
-            _burnShare.intoUint256(),
-            _assets.intoUint256(),
-            _fee.intoUint256()
-        );
     }
 
     /**

@@ -11,18 +11,19 @@ import "./XRC20.sol";
  * @dev Adheres to ERC-20 token standard and uses the ERC-4626 tokenized vault interface for bonding curve operations.
  */
 contract Solaxy is XRC20, ISolaxy {
-    ERC20 public constant DAI = ERC20(0x1CbAd85Aa66Ff3C12dc84C5881886EEB29C1bb9b);
+    ERC20 public immutable DAI;
+    address public immutable feeAddress;
     UD60x18 public constant slope = UD60x18.wrap(0.0025e18);
     UD60x18 public constant halfSlope = UD60x18.wrap(0.00125e18);
-    address public immutable feeAddress;
 
     /**
      * @dev Constructs the Solaxy contract, initializing the DAI token and the fee address.
      * @param feeAccount The address where fees will be sent to.
      */
-    constructor(address feeAccount) ERC20("Solaxy", "SLX") ERC20Permit("Solaxy") {
-        if (address(DAI) == address(0)) revert CannotBeZero();
+    constructor(address daiAddress, address feeAccount) ERC20("Solaxy", "SLX") ERC20Permit("Solaxy") {
+        if (daiAddress == address(0)) revert CannotBeZero();
         if (feeAccount == address(0)) revert CannotBeZero();
+        DAI = ERC20(daiAddress);
         feeAddress = feeAccount;
     }
 
@@ -194,7 +195,7 @@ contract Solaxy is XRC20, ISolaxy {
     /**
      * @dev See {IERC4626-asset}.
      */
-    function asset() external pure returns (address assetTokenAddress) {
+    function asset() external view returns (address assetTokenAddress) {
         return address(DAI);
     }
 

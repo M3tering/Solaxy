@@ -9,11 +9,7 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20FlashMint.sol";
 abstract contract XRC20 is ERC20, ERC20Permit, ERC20Votes, ERC20FlashMint {
     // The following functions are overrides required by Solidity.
 
-    function _afterTokenTransfer(
-        address from,
-        address to,
-        uint256 amount
-    ) internal override(ERC20, ERC20Votes) {
+    function _afterTokenTransfer(address from, address to, uint256 amount) internal override(ERC20, ERC20Votes) {
         super._afterTokenTransfer(from, to, amount);
     }
 

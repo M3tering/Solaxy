@@ -30,24 +30,23 @@ We welcome contributions from developers, designers, and blockchain enthusiasts 
 
 Read our Contribution Guidelines for details. Join us in making Solaxy better!
 
-### Project Structure
+### Project Layout
 The project is filed in the following directory structure:
 ```
-├── contracts/           # Contains the Solidity smart contract files
+├── lib/                 # Project dependencies stored as git submodules
+├── script/              # Foundry testing scripts
+├── src/                 # Contains the Solidity smart contract files
 │   ├── Interfaces/      # Contract interfaces for Solaxy
-├── migrations/          # Truffle deployment scripts
 ├── simulations/         # TokenSpice agent-based sims
-├── test/                # JavaScript Mocha tests
+├── test/                # Solidity tests for Foundry
 ```
 
 ### How to Run Tests
-1. Ensure you have Truffle installed: `npm install -g truffle`
-1. Install an run **Ganache**; a local ethereum blockchain environment 
+1. Ensure you have Foundry installed: See [Foundry book](https://book.getfoundry.sh/getting-started/installation)
+ 
+1. Download or clone the project repository
 1. Navigate to the project directory in your terminal.
-1. Run `npm install` to get the other dependencies
-1. To deploy the DAI contract, run `truffle migrate`
-1. Update `contracts/Solaxy.sol` & `test/Solaxy.test.js` with the DAI deployment address
-1. Run `truffle test` to execute the Mocha tests.
+1. Run `forge test -vvv` to execute the solidity tests.
 
 ### License
 This project is licensed under the [MIT License](README.md).

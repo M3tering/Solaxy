@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import {stdStorage, StdStorage, Test, console2} from "forge-std/Test.sol";
-import {__test_run_DAI as DAI} from "../src/XRC20.sol";
 import {Solaxy} from "../src/Solaxy.sol";
+import {Prohibited} from "../src/interfaces/ISolaxy.sol";
+import {__test_run_DAI as DAI} from "../src/XRC20.sol";
+import {Test, console2} from "forge-std/Test.sol";
 
 contract SolaxyTest is Test {
     DAI public dai;
@@ -29,13 +30,13 @@ contract SolaxyTest is Test {
     function testInitialBalanceWithNewSolaxyContract() public {
         uint256 expected = 0;
         uint256 actual = slx.totalSupply();
-        assertEq(actual, expected); // New Solaxy contract should have 0 total supply
+        assertEq(actual, expected, "New Solaxy contract should have 0 total supply");
     }
 
     function testSendEtherToContract() public {
-        vm.expectRevert(); // expecta a transaction revert during test.
+        vm.expectRevert(Prohibited.selector); // expect a transaction revert during test.
         payable(slxAddress).transfer(1 ether); // Sending 1 Ether to the contract
-        assertEq(slxAddress.balance, 0 ether);
+        assertEq(slxAddress.balance, 0 ether, "asset ether balance is still equal to zero");
     }
 
     function testDepositAndWithdraw() public {
@@ -48,11 +49,11 @@ contract SolaxyTest is Test {
         uint256 daiBalanceAfterDeposit = dai.balanceOf(slxAddress);
         uint256 slxBalanceAfterDeposit = slx.balanceOf(address(this));
 
-        assertEq(initialDaiBalance, 0); // DAI balance should be 0 before deposit
-        assertEq(initialSlxBalance, 0); // SLX balance should be 0 before deposit
-        assertEq(slxSupplyAfterDeposit, slxAmountMinted); // SLX supply should increase after deposit
-        assertEq(slxBalanceAfterDeposit, slxAmountMinted); // SLX balance should increase after deposit
-        assertEq(daiBalanceAfterDeposit, daiAmountDeposited); // DAI balance should decrease after deposit
+        assertEq(initialDaiBalance, 0, "DAI balance should be 0 before deposit");
+        assertEq(initialSlxBalance, 0, "SLX balance should be 0 before deposit");
+        assertEq(slxSupplyAfterDeposit, slxAmountMinted, "SLX supply should increase after deposit");
+        assertEq(slxBalanceAfterDeposit, slxAmountMinted, "SLX balance should increase after deposit");
+        assertEq(daiBalanceAfterDeposit, daiAmountDeposited, "DAI balance should decrease after deposit");
 
         // convert to shares
         uint256 convertedShares = slx.convertToShares(daiAmountDeposited);
@@ -64,9 +65,21 @@ contract SolaxyTest is Test {
         uint256 daiBalanceAfterWithdraw = dai.balanceOf(slxAddress);
         uint256 slxBalanceAfterWithdraw = slx.balanceOf(address(this));
 
-        assertEq(slxBalanceAfterWithdraw, slxBalanceAfterDeposit - slxAmountIn); // SLX balance should decrease after withdrawal
-        assertEq(slxSupplyAfterWithdraw, slxSupplyAfterDeposit - slxAmountBurned); // SLX supply should decrease after withdrawal
-        assertEq(daiBalanceAfterWithdraw, daiBalanceAfterDeposit - daiAmountWithdrawn); // DAI balance should increase after withdrawal
+        assertEq(
+            slxBalanceAfterWithdraw,
+            slxBalanceAfterDeposit - slxAmountIn,
+            "SLX balance should decrease after withdrawal"
+        );
+        assertEq(
+            slxSupplyAfterWithdraw,
+            slxSupplyAfterDeposit - slxAmountBurned,
+            "SLX supply should decrease after withdrawal"
+        );
+        assertEq(
+            daiBalanceAfterWithdraw,
+            daiBalanceAfterDeposit - daiAmountWithdrawn,
+            "DAI balance should increase after withdrawal"
+        );
 
         // Check for fees
         uint256 feeSlxBalance = slx.balanceOf(address(99));
@@ -83,11 +96,11 @@ contract SolaxyTest is Test {
         uint256 daiBalanceAfterMint = dai.balanceOf(slxAddress);
         uint256 slxBalanceAfterMint = slx.balanceOf(address(this));
 
-        assertEq(initialDaiBalance, 0); // DAI balance should be 0 before minting
-        assertEq(initialSlxBalance, 0); // SLX balance should be 0 before minting
-        assertEq(slxSupplyAfterMint, slxAmountMinted); // SLX supply should increase after minting
-        assertEq(slxBalanceAfterMint, slxAmountMinted); // SLX balance should increase after minting
-        assertEq(daiBalanceAfterMint, daiAmountDeposited); // DAI balance should decrease after minting
+        assertEq(initialDaiBalance, 0, "DAI balance should be 0 before minting");
+        assertEq(initialSlxBalance, 0, "SLX balance should be 0 before minting");
+        assertEq(slxSupplyAfterMint, slxAmountMinted, "SLX supply should increase after minting");
+        assertEq(slxBalanceAfterMint, slxAmountMinted, "SLX balance should increase after minting");
+        assertEq(daiBalanceAfterMint, daiAmountDeposited, "DAI balance should decrease after minting");
 
         // convert to assets
         uint256 convertedAssets = slx.convertToAssets(slxAmountBurned);
@@ -99,9 +112,24 @@ contract SolaxyTest is Test {
         uint256 daiBalanceAfterRedeem = dai.balanceOf(slxAddress);
         uint256 slxBalanceAfterRedeem = slx.balanceOf(address(this));
 
-        assertApproxEqAbs(slxBalanceAfterRedeem, slxBalanceAfterMint - slxAmountIn, 0.002e18); // SLX balance should decrease after redeeming
-        assertApproxEqAbs(slxSupplyAfterRedeem, slxSupplyAfterMint - slxAmountBurned, 0.002e18); // SLX supply should decrease after redeeming
-        assertApproxEqAbs(daiBalanceAfterRedeem, daiBalanceAfterMint - daiAmountWithdrawn, 0.002e18); // DAI balance should increase after redeeming
+        assertApproxEqAbs(
+            slxBalanceAfterRedeem,
+            slxBalanceAfterMint - slxAmountIn,
+            0.002e18,
+            "SLX balance should decrease after redeeming"
+        );
+        assertApproxEqAbs(
+            slxSupplyAfterRedeem,
+            slxSupplyAfterMint - slxAmountBurned,
+            0.002e18,
+            "SLX supply should decrease after redeeming"
+        );
+        assertApproxEqAbs(
+            daiBalanceAfterRedeem,
+            daiBalanceAfterMint - daiAmountWithdrawn,
+            0.002e18,
+            "DAI balance should increase after redeeming"
+        );
 
         // Check for fees
         uint256 feeSlxBalance = slx.balanceOf(address(99));

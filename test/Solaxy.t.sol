@@ -32,6 +32,12 @@ contract SolaxyTest is Test {
         assertEq(actual, expected); // New Solaxy contract should have 0 total supply
     }
 
+    function testSendEtherToContract() public {
+        vm.expectRevert(); // expecta a transaction revert during test.
+        payable(slxAddress).transfer(1 ether); // Sending 1 Ether to the contract
+        assertEq(slxAddress.balance, 0 ether);
+    }
+
     function testDepositAndWithdraw() public {
         uint256 initialDaiBalance = dai.balanceOf(slxAddress);
         uint256 initialSlxBalance = slx.balanceOf(address(this));
@@ -48,6 +54,10 @@ contract SolaxyTest is Test {
         assertEq(slxBalanceAfterDeposit, slxAmountMinted); // SLX balance should increase after deposit
         assertEq(daiBalanceAfterDeposit, daiAmountDeposited); // DAI balance should decrease after deposit
 
+        // convert to shares
+        uint256 convertedShares = slx.convertToShares(daiAmountDeposited);
+        assertEq(convertedShares, slxAmountBurned);
+
         // Withdraw DAI from Solaxy contract
         slx.withdraw(daiAmountWithdrawn, address(this), address(this));
         uint256 slxSupplyAfterWithdraw = slx.totalSupply();
@@ -57,6 +67,10 @@ contract SolaxyTest is Test {
         assertEq(slxBalanceAfterWithdraw, slxBalanceAfterDeposit - slxAmountIn); // SLX balance should decrease after withdrawal
         assertEq(slxSupplyAfterWithdraw, slxSupplyAfterDeposit - slxAmountBurned); // SLX supply should decrease after withdrawal
         assertEq(daiBalanceAfterWithdraw, daiBalanceAfterDeposit - daiAmountWithdrawn); // DAI balance should increase after withdrawal
+
+        // Check for fees
+        uint256 feeSlxBalance = slx.balanceOf(address(99));
+        assertEq(feeSlxBalance, 1795000000000000000);
     }
 
     function testMintAndRedeem() public {
@@ -75,6 +89,10 @@ contract SolaxyTest is Test {
         assertEq(slxBalanceAfterMint, slxAmountMinted); // SLX balance should increase after minting
         assertEq(daiBalanceAfterMint, daiAmountDeposited); // DAI balance should decrease after minting
 
+        // convert to assets
+        uint256 convertedAssets = slx.convertToAssets(slxAmountBurned);
+        assertEq(convertedAssets, daiAmountDeposited);
+
         // Redeem SLX tokens
         slx.redeem(slxAmountIn, address(this), address(this));
         uint256 slxSupplyAfterRedeem = slx.totalSupply();
@@ -84,5 +102,9 @@ contract SolaxyTest is Test {
         assertApproxEqAbs(slxBalanceAfterRedeem, slxBalanceAfterMint - slxAmountIn, 0.002e18); // SLX balance should decrease after redeeming
         assertApproxEqAbs(slxSupplyAfterRedeem, slxSupplyAfterMint - slxAmountBurned, 0.002e18); // SLX supply should decrease after redeeming
         assertApproxEqAbs(daiBalanceAfterRedeem, daiBalanceAfterMint - daiAmountWithdrawn, 0.002e18); // DAI balance should increase after redeeming
+
+        // Check for fees
+        uint256 feeSlxBalance = slx.balanceOf(address(99));
+        assertEq(feeSlxBalance, 1793880000000000000);
     }
 }

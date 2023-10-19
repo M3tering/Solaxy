@@ -11,19 +11,18 @@ import "./XRC20.sol";
  * @dev Adheres to ERC-20 token standard and uses the ERC-4626 tokenized vault interface for bonding curve operations.
  */
 contract Solaxy is XRC20, ISolaxy {
-    ERC20 public immutable DAI;
     address public immutable feeAddress;
     UD60x18 public constant slope = UD60x18.wrap(0.0025e18);
     UD60x18 public constant halfSlope = UD60x18.wrap(0.00125e18);
+    ERC20 public constant DAI = ERC20(0x1CbAd85Aa66Ff3C12dc84C5881886EEB29C1bb9b);
 
     /**
      * @dev Constructs the Solaxy contract, initializing the DAI token and the fee address.
      * @param feeAccount The address where fees will be sent to.
      */
-    constructor(address daiAddress, address feeAccount) ERC20("Solaxy", "SLX") ERC20Permit("Solaxy") {
-        if (daiAddress == address(0)) revert CannotBeZero();
+    constructor(address feeAccount) ERC20("Solaxy", "SLX") ERC20Permit("Solaxy") {
+        if (address(DAI) == address(0)) revert CannotBeZero();
         if (feeAccount == address(0)) revert CannotBeZero();
-        DAI = ERC20(daiAddress);
         feeAddress = feeAccount;
     }
 
@@ -31,7 +30,7 @@ contract Solaxy is XRC20, ISolaxy {
      * @dev Fallback function to revert Ether transfers directly to the contract.
      */
     receive() external payable {
-        revert Prohibited();
+        revert PayableErr();
     }
 
     /**
@@ -74,7 +73,7 @@ contract Solaxy is XRC20, ISolaxy {
      */
     function safeDeposit(uint256 assets, address receiver, uint256 minSharesOut) external returns (uint256 shares) {
         shares = computeDeposit(assets, totalSupply());
-        if (shares < minSharesOut) revert AvertSlippage();
+        if (shares < minSharesOut) revert SlippageError();
         _deposit(receiver, assets, shares);
     }
 
@@ -88,7 +87,7 @@ contract Solaxy is XRC20, ISolaxy {
     {
         uint256 fee;
         (shares, fee) = computeWithdraw(assets, totalSupply());
-        if (shares > maxSharesIn) revert AvertSlippage();
+        if (shares > maxSharesIn) revert SlippageError();
         _withdraw(receiver, owner, assets, shares, fee);
     }
 
@@ -98,7 +97,7 @@ contract Solaxy is XRC20, ISolaxy {
      */
     function safeMint(uint256 shares, address receiver, uint256 maxAssetsIn) external returns (uint256 assets) {
         assets = computeMint(shares, totalSupply());
-        if (assets > maxAssetsIn) revert AvertSlippage();
+        if (assets > maxAssetsIn) revert SlippageError();
         _deposit(receiver, assets, shares);
     }
 
@@ -112,7 +111,7 @@ contract Solaxy is XRC20, ISolaxy {
     {
         uint256 fee;
         (shares, assets, fee) = computeRedeem(shares, totalSupply());
-        if (assets < minAssetsOut) revert AvertSlippage();
+        if (assets < minAssetsOut) revert SlippageError();
         _withdraw(receiver, owner, assets, shares, fee);
     }
 
@@ -195,7 +194,7 @@ contract Solaxy is XRC20, ISolaxy {
     /**
      * @dev See {IERC4626-asset}.
      */
-    function asset() external view returns (address assetTokenAddress) {
+    function asset() external pure returns (address assetTokenAddress) {
         return address(DAI);
     }
 
@@ -290,7 +289,7 @@ contract Solaxy is XRC20, ISolaxy {
         if (assets == 0) revert CannotBeZero();
         if (shares == 0) revert CannotBeZero();
         if (!DAI.transferFrom(msg.sender, address(this), assets)) {
-            revert TransferFailed();
+            revert TransferError();
         }
         emit Deposit(msg.sender, receiver, assets, shares);
         _mint(receiver, shares);
@@ -310,8 +309,8 @@ contract Solaxy is XRC20, ISolaxy {
         }
         _burn(owner, shares);
 
-        if (!transfer(feeAddress, fee)) revert TransferFailed();
-        if (!DAI.transfer(receiver, assets)) revert TransferFailed();
+        if (!transfer(feeAddress, fee)) revert TransferError();
+        if (!DAI.transfer(receiver, assets)) revert TransferError();
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
 

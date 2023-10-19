@@ -2,15 +2,16 @@
 pragma solidity ^0.8.19;
 
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import {UD60x18} from "@prb/math/src/UD60x18.sol";
 
-error Prohibited();
+error PayableErr();
 error Undersupply();
 error CannotBeZero();
-error AvertSlippage();
-error TransferFailed();
+error SlippageError();
+error TransferError();
 
-interface ISolaxy is IERC4626 {
+interface ISolaxy is IERC20, IERC4626 {
     function safeDeposit(uint256 assets, address receiver, uint256 minSharesOut) external returns (uint256 shares);
 
     function safeWithdraw(uint256 assets, address receiver, address owner, uint256 maxSharesIn)

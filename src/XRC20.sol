@@ -21,9 +21,3 @@ abstract contract XRC20 is ERC20, ERC20Permit, ERC20Votes, ERC20FlashMint {
         super._burn(account, amount);
     }
 }
-
-contract __test_run_DAI is ERC20 {
-    constructor() ERC20("test run DAI", "__") {
-        _mint(msg.sender, 1_000_000_000 * 10 ** decimals());
-    }
-}

@@ -2,13 +2,13 @@
 pragma solidity ^0.8.19;
 
 import {Solaxy} from "../src/Solaxy.sol";
-import {Prohibited} from "../src/interfaces/ISolaxy.sol";
-import {__test_run_DAI as DAI} from "../src/XRC20.sol";
+import {IERC20, PayableErr} from "../src/interfaces/ISolaxy.sol";
 import {Test, console2} from "forge-std/Test.sol";
 
 contract SolaxyTest is Test {
-    DAI public dai;
     Solaxy public slx;
+    IERC20 public dai;
+    address public here;
     address public slxAddress;
     address public daiAddress;
     uint256 public slxAmountIn = 6.795e18;
@@ -16,15 +16,19 @@ contract SolaxyTest is Test {
     uint256 public slxAmountBurned = 5e18;
     uint256 public daiAmountDeposited = 0.125e18;
     uint256 public daiAmountWithdrawn = 0.09375e18;
+    uint256 public oneMillionDaiBalance = 1e6 * 1e18;
 
     function setUp() public {
-        dai = new DAI();
-        daiAddress = address(dai);
+        here = address(this);
 
-        slx = new Solaxy(daiAddress, address(99));
+        slx = new Solaxy(address(99));
         slxAddress = address(slx);
 
-        dai.approve(slxAddress, dai.totalSupply());
+        daiAddress = slx.asset();
+        dai = IERC20(daiAddress);
+
+        deal(daiAddress, here, oneMillionDaiBalance, true);
+        dai.approve(slxAddress, oneMillionDaiBalance);
     }
 
     function testInitialBalanceWithNewSolaxyContract() public {
@@ -34,20 +38,20 @@ contract SolaxyTest is Test {
     }
 
     function testSendEtherToContract() public {
-        vm.expectRevert(Prohibited.selector); // expect a transaction revert during test.
+        vm.expectRevert(PayableErr.selector); // expect a transaction revert during test.
         payable(slxAddress).transfer(1 ether); // Sending 1 Ether to the contract
         assertEq(slxAddress.balance, 0 ether, "asset ether balance is still equal to zero");
     }
 
     function testDepositAndWithdraw() public {
         uint256 initialDaiBalance = dai.balanceOf(slxAddress);
-        uint256 initialSlxBalance = slx.balanceOf(address(this));
+        uint256 initialSlxBalance = slx.balanceOf(here);
 
         // Deposit DAI to Solaxy contract
-        slx.deposit(daiAmountDeposited, address(this));
+        slx.deposit(daiAmountDeposited, here);
         uint256 slxSupplyAfterDeposit = slx.totalSupply();
         uint256 daiBalanceAfterDeposit = dai.balanceOf(slxAddress);
-        uint256 slxBalanceAfterDeposit = slx.balanceOf(address(this));
+        uint256 slxBalanceAfterDeposit = slx.balanceOf(here);
 
         assertEq(initialDaiBalance, 0, "DAI balance should be 0 before deposit");
         assertEq(initialSlxBalance, 0, "SLX balance should be 0 before deposit");
@@ -60,10 +64,10 @@ contract SolaxyTest is Test {
         assertEq(convertedShares, slxAmountBurned);
 
         // Withdraw DAI from Solaxy contract
-        slx.withdraw(daiAmountWithdrawn, address(this), address(this));
+        slx.withdraw(daiAmountWithdrawn, here, here);
         uint256 slxSupplyAfterWithdraw = slx.totalSupply();
         uint256 daiBalanceAfterWithdraw = dai.balanceOf(slxAddress);
-        uint256 slxBalanceAfterWithdraw = slx.balanceOf(address(this));
+        uint256 slxBalanceAfterWithdraw = slx.balanceOf(here);
 
         assertEq(
             slxBalanceAfterWithdraw,
@@ -88,13 +92,13 @@ contract SolaxyTest is Test {
 
     function testMintAndRedeem() public {
         uint256 initialDaiBalance = dai.balanceOf(slxAddress);
-        uint256 initialSlxBalance = slx.balanceOf(address(this));
+        uint256 initialSlxBalance = slx.balanceOf(here);
 
         // Mint new SLX tokens
-        slx.mint(slxAmountMinted, address(this));
+        slx.mint(slxAmountMinted, here);
         uint256 slxSupplyAfterMint = slx.totalSupply();
         uint256 daiBalanceAfterMint = dai.balanceOf(slxAddress);
-        uint256 slxBalanceAfterMint = slx.balanceOf(address(this));
+        uint256 slxBalanceAfterMint = slx.balanceOf(here);
 
         assertEq(initialDaiBalance, 0, "DAI balance should be 0 before minting");
         assertEq(initialSlxBalance, 0, "SLX balance should be 0 before minting");
@@ -107,10 +111,10 @@ contract SolaxyTest is Test {
         assertEq(convertedAssets, daiAmountDeposited);
 
         // Redeem SLX tokens
-        slx.redeem(slxAmountIn, address(this), address(this));
+        slx.redeem(slxAmountIn, here, here);
         uint256 slxSupplyAfterRedeem = slx.totalSupply();
         uint256 daiBalanceAfterRedeem = dai.balanceOf(slxAddress);
-        uint256 slxBalanceAfterRedeem = slx.balanceOf(address(this));
+        uint256 slxBalanceAfterRedeem = slx.balanceOf(here);
 
         assertApproxEqAbs(
             slxBalanceAfterRedeem,

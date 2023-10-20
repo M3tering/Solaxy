@@ -45,7 +45,7 @@ The project is filed in the following directory structure:
 1. Ensure you have Foundry installed: See [Foundry book](https://book.getfoundry.sh/getting-started/installation)
 1. Download or clone the project repository
 1. Navigate to the project directory in your terminal.
-1. Run `forge test --fork-url https://babel-api.mainnet.iotex.io/` to execute tests on a fork of IoTeX mainnet, 
+1. Run `forge test -vvv` to execute tests on a fork of IoTeX mainnet, 
 
 ### License
 This project is licensed under the [MIT License](README.md).

@@ -202,7 +202,7 @@ contract Solaxy is XRC20, ISolaxy {
      * @dev See {IERC4626-totalAssets}.
      */
     function totalAssets() public view returns (uint256 totalManagedAssets) {
-        return DAI.balanceOf(address(this));
+        totalManagedAssets = DAI.balanceOf(address(this));
     }
 
     /**

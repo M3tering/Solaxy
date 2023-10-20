@@ -11,4 +11,12 @@ remappings = [
     "@openzeppelin/contracts@4.9.3/=lib/openzeppelin-contracts/contracts/"
 ]
 
+[fuzz]
+runs = 40
+seed = 0x544D
+max_test_rejects = 7
+
+[invariant]
+runs = 40
+
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

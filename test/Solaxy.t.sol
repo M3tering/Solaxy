@@ -12,14 +12,15 @@ contract SolaxyTest is Test {
     address public here;
     address public slxAddress;
     address public daiAddress;
-    uint256 public slxAmountIn = 6.795e18;
-    uint256 public slxAmountMinted = 10e18;
-    uint256 public slxAmountBurned = 5e18;
-    uint256 public daiAmountDeposited = 0.125e18;
-    uint256 public daiAmountWithdrawn = 0.09375e18;
-    uint256 public oneMillionDaiBalance = 1e6 * 1e18;
+    uint256 public constant slxAmountIn = 6.795e18;
+    uint256 public constant slxAmountMinted = 10e18;
+    uint256 public constant slxAmountBurned = 5e18;
+    uint256 public constant daiAmountDeposited = 0.125e18;
+    uint256 public constant daiAmountWithdrawn = 0.09375e18;
+    uint256 public constant oneMillionDaiBalance = 1e6 * 1e18;
 
     function setUp() public {
+        vm.createSelectFork("https://babel-api.mainnet.iotex.io/", 24_838_201);
         here = address(this);
 
         slx = new Solaxy(address(99));

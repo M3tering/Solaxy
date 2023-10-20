@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import {UD60x18, ud60x18} from "@prb/math/src/UD60x18.sol";
-import "./interfaces/ISolaxy.sol";
 import "./XRC20.sol";
+import "./interfaces/ISolaxy.sol";
+import {UD60x18, ud60x18} from "@prb/math@4.0.1/src/UD60x18.sol";
 
 /**
  * @title Solaxy

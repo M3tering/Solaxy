@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20FlashMint.sol";
+import "@openzeppelin/contracts@4.9.3/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts@4.9.3/token/ERC20/extensions/ERC20Permit.sol";
+import "@openzeppelin/contracts@4.9.3/token/ERC20/extensions/ERC20Votes.sol";
+import "@openzeppelin/contracts@4.9.3/token/ERC20/extensions/ERC20FlashMint.sol";
 
 abstract contract XRC20 is ERC20, ERC20Permit, ERC20Votes, ERC20FlashMint {
     // The following functions are overrides required by Solidity.

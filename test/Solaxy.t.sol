@@ -2,7 +2,8 @@
 pragma solidity ^0.8.19;
 
 import {Solaxy} from "../src/Solaxy.sol";
-import {IERC20, PayableErr} from "../src/interfaces/ISolaxy.sol";
+import {PayableErr} from "../src/interfaces/ISolaxy.sol";
+import {IERC20} from "@openzeppelin/contracts@4.8.3/interfaces/IERC20.sol";
 import {Test, console2} from "forge-std/Test.sol";
 
 contract SolaxyTest is Test {

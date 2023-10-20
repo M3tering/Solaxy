@@ -63,7 +63,7 @@ contract SolaxyTest is Test {
 
         // convert to shares
         uint256 convertedShares = slx.convertToShares(daiAmountDeposited);
-        assertEq(convertedShares, slxAmountBurned);
+        assertEq(convertedShares, slxAmountMinted);
 
         // Withdraw DAI from Solaxy contract
         slx.withdraw(daiAmountWithdrawn, here, here);
@@ -109,7 +109,7 @@ contract SolaxyTest is Test {
         assertEq(daiBalanceAfterMint, daiAmountDeposited, "DAI balance should decrease after minting");
 
         // convert to assets
-        uint256 convertedAssets = slx.convertToAssets(slxAmountBurned);
+        uint256 convertedAssets = slx.convertToAssets(slxAmountMinted);
         assertEq(convertedAssets, daiAmountDeposited);
 
         // Redeem SLX tokens
@@ -141,4 +141,9 @@ contract SolaxyTest is Test {
         uint256 feeSlxBalance = slx.balanceOf(address(99));
         assertEq(feeSlxBalance, 1793880000000000000);
     }
+
+    // function testKnowAccountHoldingsOnIotexMinnet() public {
+    //     uint256 knowHolderBalance = dai.balanceOf(0x6b4b08A879Dc41484438b3a6EAaA628F0Ae8d79f);
+    //     assertEq(knowHolderBalance, 200e18);
+    // }
 }

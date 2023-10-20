@@ -148,11 +148,23 @@ contract Solaxy is XRC20, ISolaxy {
     }
 
     /**
+     * @notice Computes the current price of a share, as price = totalSupply * slope + 0
+     * which is derived from the linear slope function: f(x) = mx + c,
+     * where `x` is the supply of shares, the slope `m` is 0.0025, and `c` is a constant term = 0.
+     *
+     * @return price The current price along the bonding curve.
+     */
+    function currentPrice() external view returns (UD60x18) {
+        return ud60x18(totalSupply()).mul(slope);
+    }
+
+    /**
      * @dev See {IERC4626-convertToShares}.
      */
     function convertToShares(uint256 assets) external view returns (uint256 shares) {
         if (totalAssets() < assets) revert Undersupply();
-        return ud60x18(assets).div(currentPrice()).intoUint256();
+        UD60x18 conversionPrice = ud60x18(totalSupply()).mul(halfSlope);
+        shares = ud60x18(assets).div(conversionPrice).intoUint256();
     }
 
     /**
@@ -160,7 +172,8 @@ contract Solaxy is XRC20, ISolaxy {
      */
     function convertToAssets(uint256 shares) external view returns (uint256 assets) {
         if (totalSupply() < shares) revert Undersupply();
-        return ud60x18(shares).mul(currentPrice()).intoUint256();
+        UD60x18 conversionPrice = ud60x18(totalSupply()).mul(halfSlope);
+        assets = ud60x18(shares).mul(conversionPrice).intoUint256();
     }
 
     /**
@@ -203,17 +216,6 @@ contract Solaxy is XRC20, ISolaxy {
      */
     function totalAssets() public view returns (uint256 totalManagedAssets) {
         totalManagedAssets = DAI.balanceOf(address(this));
-    }
-
-    /**
-     * @notice Computes the current price of a share, as price = totalSupply * slope + 0
-     * which is derived from the linear slope function: f(x) = mx + c,
-     * where `x` is the supply of shares, the slope `m` is 0.0025, and `c` is a constant term = 0.
-     *
-     * @return price The current price along the bonding curve.
-     */
-    function currentPrice() public view returns (UD60x18) {
-        return ud60x18(totalSupply()).mul(slope);
     }
 
     /**
@@ -288,10 +290,10 @@ contract Solaxy is XRC20, ISolaxy {
     function _deposit(address receiver, uint256 assets, uint256 shares) internal {
         if (assets == 0) revert CannotBeZero();
         if (shares == 0) revert CannotBeZero();
-        if (!DAI.transferFrom(msg.sender, address(this), assets)) {
+        if (!DAI.transferFrom(receiver, address(this), assets)) {
             revert TransferError();
         }
-        emit Deposit(msg.sender, receiver, assets, shares);
+        emit Deposit(receiver, receiver, assets, shares);
         _mint(receiver, shares);
     }
 

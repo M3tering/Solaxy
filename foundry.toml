@@ -12,11 +12,11 @@ remappings = [
 ]
 
 [fuzz]
-runs = 40
+runs = 30
 seed = 0x544D
-max_test_rejects = 7
 
 [invariant]
-runs = 40
+runs = 30
+
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

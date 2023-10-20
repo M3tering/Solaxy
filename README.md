@@ -37,7 +37,6 @@ The project is filed in the following directory structure:
 ├── script/              # Foundry testing scripts
 ├── src/                 # Contains the Solidity smart contract files
 │   ├── Interfaces/      # Contract interfaces for Solaxy
-├── simulations/         # TokenSpice agent-based sims
 ├── test/                # Solidity tests for Foundry
 ```
 

@@ -1,6 +1,10 @@
 name: test
 
-on: workflow_dispatch
+on: 
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
 
 env:
   FOUNDRY_PROFILE: ci
@@ -18,7 +22,7 @@ jobs:
           submodules: recursive
 
       - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
+        uses: foundry-rs/foundry-toolchain@v1.0.10
         with:
           version: nightly
 
@@ -30,5 +34,5 @@ jobs:
 
       - name: Run Forge tests
         run: |
-          forge test -vvv
+          forge test -vvvv
         id: test

@@ -2,19 +2,23 @@
 src = "src"
 out = "out"
 libs = ["lib"]
-solc-version = "0.8.19"
 optimizer = true
 optimizer-runs = 1000
+solc-version = "0.8.19"
 
 remappings = [
     "@prb/math@4.0.1/=lib/prb-math/",
     "@openzeppelin/contracts@4.9.3/=lib/openzeppelin-contracts/contracts/"
 ]
 
+[rpc_endpoints]
+iotex-mainnet = "https://babel-api.mainnet.iotex.io/"
+
 [fuzz]
 seed = 0x544D
 
 [invariant]
+runs = 256
 
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

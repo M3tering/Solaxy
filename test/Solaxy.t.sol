@@ -20,7 +20,8 @@ contract SolaxyTest is Test {
     uint256 public constant oneMillionDaiBalance = 1e6 * 1e18;
 
     function setUp() public {
-        vm.createSelectFork("https://babel-api.mainnet.iotex.io/", 24_838_201);
+        string memory url = vm.rpcUrl("iotex-mainnet");
+        vm.createSelectFork(url, 24_838_201);
         here = address(this);
 
         slx = new Solaxy(address(99));

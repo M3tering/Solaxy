@@ -58,7 +58,8 @@ contract SolaxyInvarantTest is Test {
     address public handlerAddress;
 
     function setUp() public {
-        vm.createSelectFork("https://babel-api.mainnet.iotex.io/", 24_838_201);
+        string memory url = vm.rpcUrl("iotex-mainnet");
+        vm.createSelectFork(url, 24_838_201);
 
         slx = new Solaxy(address(99));
         slxAddress = address(slx);

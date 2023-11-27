@@ -15,7 +15,7 @@ remappings = [
 iotex-mainnet = "https://babel-api.mainnet.iotex.io/"
 
 [fuzz]
-seed = 0x544D
+seed = "0x544D"
 
 [invariant]
 runs = 256

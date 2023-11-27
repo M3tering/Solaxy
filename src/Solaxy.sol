@@ -290,10 +290,10 @@ contract Solaxy is XRC20, ISolaxy {
     function _deposit(address receiver, uint256 assets, uint256 shares) internal {
         if (assets == 0) revert CannotBeZero();
         if (shares == 0) revert CannotBeZero();
-        if (!DAI.transferFrom(receiver, address(this), assets)) {
+        if (!DAI.transferFrom(msg.sender, address(this), assets)) {
             revert TransferError();
         }
-        emit Deposit(receiver, receiver, assets, shares);
+        emit Deposit(msg.sender, receiver, assets, shares);
         _mint(receiver, shares);
     }
 

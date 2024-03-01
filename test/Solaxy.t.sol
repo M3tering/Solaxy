@@ -5,13 +5,16 @@ import {Test} from "forge-std/Test.sol";
 import {Solaxy} from "../src/Solaxy.sol";
 import {PayableErr} from "../src/interfaces/ISolaxy.sol";
 import {IERC20} from "@openzeppelin/contracts@4.9.3/interfaces/IERC20.sol";
+import {IERC721} from "@openzeppelin/contracts@4.9.3/interfaces/IERC721.sol";
 
 contract SolaxyTest is Test {
     Solaxy public slx;
     IERC20 public dai;
+    IERC721 public m3ter;
     address public here;
     address public slxAddress;
     address public daiAddress;
+    address public m3terAddress;
     uint256 public constant slxAmountIn = 6.795e18;
     uint256 public constant slxAmountMinted = 10e18;
     uint256 public constant slxAmountBurned = 5e18;
@@ -29,9 +32,12 @@ contract SolaxyTest is Test {
 
         daiAddress = slx.asset();
         dai = IERC20(daiAddress);
-
         deal(daiAddress, here, oneMillionDaiBalance, true);
         dai.approve(slxAddress, oneMillionDaiBalance);
+
+        m3ter = IERC721(0x36c042bad25f24c4Ad5391Bf52b1eA9ec811A9D3);
+        m3terAddress = address(m3ter);
+        dealERC721(m3terAddress, here, 1);
     }
 
     function testInitialBalanceWithNewSolaxyContract() public {

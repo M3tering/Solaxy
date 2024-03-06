@@ -8,22 +8,22 @@ import {IERC721} from "@openzeppelin/contracts@4.9.3/interfaces/IERC721.sol";
 
 /**
  * @title Solaxy
- * @notice Token contract implementing a linear DAI-backed bonding curve where the solpe is 25 basis points (0.0025).
+ * @notice Token contract implementing a linear sDAI-backed bonding curve where the solpe is 25 basis points (0.0025).
  * @dev Adheres to ERC-20 token standard and uses the ERC-4626 tokenized vault interface for bonding curve operations.
  */
 contract Solaxy is XRC20, ISolaxy {
     address public immutable feeAddress;
     UD60x18 public constant slope = UD60x18.wrap(0.0025e18);
     UD60x18 public constant halfSlope = UD60x18.wrap(0.00125e18);
-    ERC20 public constant DAI = ERC20(0x1CbAd85Aa66Ff3C12dc84C5881886EEB29C1bb9b);
-    IERC721 public constant M3ter = IERC721(0x36c042bad25f24c4Ad5391Bf52b1eA9ec811A9D3); // TODO: M3ter Address
+    ERC20 public constant sDAI = ERC20(0xaf204776c7245bF4147c2612BF6e5972Ee483701);
+    IERC721 public constant M3ter = IERC721(0xbCFeFea1e83060DbCEf2Ed0513755D049fDE952C); // TODO: M3ter Address
 
     /**
-     * @dev Constructs the Solaxy contract, initializing the DAI token and the fee address.
+     * @dev Constructs the Solaxy contract, initializing the sDAI token and the fee address.
      * @param feeAccount The address where fees will be sent to.
      */
     constructor(address feeAccount) ERC20("Solaxy", "SLX") ERC20Permit("Solaxy") {
-        if (address(DAI) == address(0)) revert CannotBeZero();
+        if (address(sDAI) == address(0)) revert CannotBeZero();
         if (feeAccount == address(0)) revert CannotBeZero();
         feeAddress = feeAccount;
     }
@@ -218,14 +218,14 @@ contract Solaxy is XRC20, ISolaxy {
      * @dev See {IERC4626-asset}.
      */
     function asset() external pure returns (address assetTokenAddress) {
-        return address(DAI);
+        return address(sDAI);
     }
 
     /**
      * @dev See {IERC4626-totalAssets}.
      */
     function totalAssets() public view returns (uint256 totalManagedAssets) {
-        totalManagedAssets = DAI.balanceOf(address(this));
+        totalManagedAssets = sDAI.balanceOf(address(this));
     }
 
     /**
@@ -300,7 +300,7 @@ contract Solaxy is XRC20, ISolaxy {
     function _deposit(address receiver, uint256 assets, uint256 shares) internal {
         if (assets == 0) revert CannotBeZero();
         if (shares == 0) revert CannotBeZero();
-        if (!DAI.transferFrom(msg.sender, address(this), assets)) {
+        if (!sDAI.transferFrom(msg.sender, address(this), assets)) {
             revert TransferError();
         }
         emit Deposit(msg.sender, receiver, assets, shares);
@@ -322,7 +322,7 @@ contract Solaxy is XRC20, ISolaxy {
         _burn(owner, shares);
 
         if (!transfer(feeAddress, fee)) revert TransferError();
-        if (!DAI.transfer(receiver, assets)) revert TransferError();
+        if (!sDAI.transfer(receiver, assets)) revert TransferError();
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
 

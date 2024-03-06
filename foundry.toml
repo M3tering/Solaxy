@@ -12,7 +12,7 @@ remappings = [
 ]
 
 [rpc_endpoints]
-iotex-mainnet = "https://babel-api.mainnet.iotex.io/"
+gnosis-mainnet = "https://rpc.gnosischain.com"
 
 [fuzz]
 seed = "0x544D"

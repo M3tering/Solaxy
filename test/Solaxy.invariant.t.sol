@@ -10,91 +10,91 @@ import {Solaxy} from "../src/Solaxy.sol";
 import {IERC20} from "@openzeppelin/contracts@4.9.3/interfaces/IERC20.sol";
 import {CannotBeZero, Undersupply} from "../src/interfaces/ISolaxy.sol";
 
-uint256 constant ONE_BILLION_DAI = 1e9 * 1e18;
+uint256 constant sDAI_OneBillion = 1e9 * 1e18;
 
 contract Handler is CommonBase, StdCheats, StdUtils {
-    Solaxy private solaxy;
-    IERC20 private dai;
+    Solaxy private SLX;
+    IERC20 private sDAI;
 
-    constructor(Solaxy slx, IERC20 Dai) {
-        dai = Dai;
-        solaxy = slx;
-        dai.approve(address(slx), ONE_BILLION_DAI);
+    constructor(Solaxy slx, IERC20 sdai) {
+        SLX = slx;
+        sDAI = sdai;
+        sDAI.approve(address(slx), sDAI_OneBillion);
     }
 
     function deposit(uint256 assets) public {
         assets = bound(assets, 1e8, 1e20);
         if (assets == 0) vm.expectRevert(CannotBeZero.selector);
-        if (assets > dai.balanceOf(address(this))) vm.expectRevert(bytes("ERC20: transfer amount exceeds balance"));
-        solaxy.deposit(assets, address(this));
+        if (assets > sDAI.balanceOf(address(this))) vm.expectRevert(bytes("ERC20: transfer amount exceeds balance"));
+        SLX.deposit(assets, address(this));
     }
 
     function withdraw(uint256 assets) public {
         assets = bound(assets, 1e8, 1e20);
         if (assets == 0) vm.expectRevert(CannotBeZero.selector);
-        if (assets > solaxy.totalAssets()) vm.expectRevert(Undersupply.selector);
-        solaxy.withdraw(assets, address(this), address(this));
+        if (assets > SLX.totalAssets()) vm.expectRevert(Undersupply.selector);
+        SLX.withdraw(assets, address(this), address(this));
     }
 
     function mint(uint256 shares) public {
         shares = bound(shares, 1e8, 10e20);
-        solaxy.mint(shares, address(this));
+        SLX.mint(shares, address(this));
     }
 
     function redeem(uint256 shares) public {
         shares = bound(shares, 1e8, 1e20);
-        if (shares > solaxy.totalSupply()) vm.expectRevert(Undersupply.selector);
-        if (shares > solaxy.balanceOf(address(this))) vm.expectRevert(bytes("ERC20: transfer amount exceeds balance"));
-        solaxy.redeem(shares, address(this), address(this));
+        if (shares > SLX.totalSupply()) vm.expectRevert(Undersupply.selector);
+        if (shares > SLX.balanceOf(address(this))) vm.expectRevert(bytes("ERC20: transfer amount exceeds balance"));
+        SLX.redeem(shares, address(this), address(this));
     }
 }
 
 contract SolaxyInvarantTest is Test {
     Handler public handler;
-    Solaxy public slx;
-    IERC20 public dai;
-    address public slxAddress;
-    address public daiAddress;
+    Solaxy public SLX;
+    IERC20 public sDAI;
+    address public SLX_address;
+    address public sDAI_address;
     address public handlerAddress;
 
     function setUp() public {
-        string memory url = vm.rpcUrl("iotex-mainnet");
-        vm.createSelectFork(url, 24_838_201);
+        string memory url = vm.rpcUrl("gnosis-mainnet");
+        vm.createSelectFork(url, 32_793_113);
 
-        slx = new Solaxy(address(99));
-        slxAddress = address(slx);
+        SLX = new Solaxy(address(99));
+        SLX_address = address(SLX);
 
-        daiAddress = slx.asset();
-        dai = IERC20(daiAddress);
+        sDAI_address = SLX.asset();
+        sDAI = IERC20(sDAI_address);
 
-        handler = new Handler(slx, dai);
+        handler = new Handler(SLX, sDAI);
         handlerAddress = address(handler);
-        deal(daiAddress, handlerAddress, ONE_BILLION_DAI, true);
+        deal(sDAI_address, handlerAddress, sDAI_OneBillion, true);
         targetContract(handlerAddress);
     }
 
     function invariantValuation() public {
-        uint256 daiBalanceAfterTest = dai.balanceOf(handlerAddress);
-        uint256 solaxyTVL = ONE_BILLION_DAI - daiBalanceAfterTest;
-        assertEq(slx.totalAssets(), solaxyTVL, "Total value locked should be strictly equal to total reserve assets");
+        uint256 sDAI_balanceAfterTest = sDAI.balanceOf(handlerAddress);
+        uint256 solaxyTVL = sDAI_OneBillion - sDAI_balanceAfterTest;
+        assertEq(SLX.totalAssets(), solaxyTVL, "Total value locked should be strictly equal to total reserve assets");
 
-        uint256 totalFees = slx.balanceOf(address(99));
-        uint256 totalHoldings = slx.balanceOf(handlerAddress);
+        uint256 totalFees = SLX.balanceOf(address(99));
+        uint256 totalHoldings = SLX.balanceOf(handlerAddress);
         assertEq(
-            slx.totalSupply(),
+            SLX.totalSupply(),
             totalHoldings + totalFees,
             "Total user holdings plus all fees collected should be strictly equal to the total token supply"
         );
 
         assertGe(
-            slx.totalAssets(),
-            slx.convertToAssets(slx.totalSupply()),
+            SLX.totalAssets(),
+            SLX.convertToAssets(SLX.totalSupply()),
             "Total reserve assets must at least be enough to cover the converstion of all existing tokens"
         );
     }
 
-    // function testKnowAccountHoldingsOnIotexMinnet() public {
-    //     uint256 knowHolderBalance = dai.balanceOf(0x6b4b08A879Dc41484438b3a6EAaA628F0Ae8d79f);
-    //     assertEq(knowHolderBalance, 200e18);
-    // }
+    function testKnowAccountHoldingsOnIotexMinnet() public {
+        uint256 knowHolderBalance = sDAI.balanceOf(sDAI_address);
+        assertApproxEqAbs(knowHolderBalance, 30.5e18, 0.001e18, "sDAI balance should approximately equal 30.49 sDAI");
+    }
 }

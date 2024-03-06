@@ -93,7 +93,7 @@ contract SolaxyInvarantTest is Test {
         );
     }
 
-    function testKnowAccountHoldingsOnIotexMinnet() public {
+    function testKnowAccountHoldingsOnMinnet() public {
         uint256 knowHolderBalance = sDAI.balanceOf(sDAI_address);
         assertApproxEqAbs(knowHolderBalance, 30.5e18, 0.001e18, "sDAI balance should approximately equal 30.49 sDAI");
     }

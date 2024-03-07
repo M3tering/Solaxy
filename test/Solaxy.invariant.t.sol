@@ -71,6 +71,8 @@ contract SolaxyInvarantTest is Test {
         handlerAddress = address(handler);
         deal(sDAI_address, handlerAddress, sDAI_OneBillion, true);
         targetContract(handlerAddress);
+
+        dealERC721(address(SLX.M3ter()), handlerAddress, 1);
     }
 
     function invariantValuation() public {

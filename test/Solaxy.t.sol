@@ -22,7 +22,7 @@ contract SolaxyTest is Test {
 
     function setUp() public {
         string memory url = vm.rpcUrl("gnosis-mainnet");
-        vm.createSelectFork(url, 32_793_113);
+        vm.createSelectFork(url, 31_351_993);
         here = address(this);
 
         SLX = new Solaxy(address(99));

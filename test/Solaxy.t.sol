@@ -3,11 +3,11 @@ pragma solidity ^0.8.19;
 
 import {Test} from "forge-std/Test.sol";
 import {Solaxy} from "../src/Solaxy.sol";
-import {PayableErr} from "../src/interfaces/ISolaxy.sol";
+import {PayableErr, RequiresM3ter} from "../src/interfaces/ISolaxy.sol";
 import {IERC20} from "@openzeppelin/contracts@4.9.3/interfaces/IERC20.sol";
 import {IERC721} from "@openzeppelin/contracts@4.9.3/interfaces/IERC721.sol";
 
-contract SolaxyTest is Test {
+contract SolaxyTestWithoutM3ter is Test {
     Solaxy public SLX;
     IERC20 public sDAI;
     address public here;
@@ -22,7 +22,7 @@ contract SolaxyTest is Test {
 
     function setUp() public {
         string memory url = vm.rpcUrl("gnosis-mainnet");
-        vm.createSelectFork(url);
+        vm.createSelectFork(url, 31_351_993);
         here = address(this);
 
         SLX = new Solaxy(address(99));
@@ -32,8 +32,6 @@ contract SolaxyTest is Test {
         sDAI = IERC20(sDAI_address);
         deal(sDAI_address, here, sDAI_balanceOneMillion, true);
         sDAI.approve(SLX_address, sDAI_balanceOneMillion);
-
-        dealERC721(address(SLX.M3ter()), here, 1);
     }
 
     function testInitialBalanceWithNewSolaxyContract() public {
@@ -48,7 +46,27 @@ contract SolaxyTest is Test {
         assertEq(SLX_address.balance, 0 ether, "asset ether balance is still equal to zero");
     }
 
-    function testDepositAndWithdraw() public {
+    function testNonM3terHolder() public {
+        vm.expectRevert(RequiresM3ter.selector);
+        // Deposit sDAI to Solaxy contract
+        SLX.deposit(sDAI_amountDeposited, here);
+
+        vm.expectRevert(RequiresM3ter.selector);
+        // Withdraw sDAI from Solaxy contract
+        SLX.withdraw(sDAI_amountWithdrawn, here, here);
+
+        vm.expectRevert(RequiresM3ter.selector);
+        // Mint new SLX tokens
+        SLX.mint(SLX_amountMinted, here);
+
+        vm.expectRevert(RequiresM3ter.selector);
+        // Redeem SLX tokens
+        SLX.redeem(SLX_amountIn, here, here);
+    }
+
+    function testM3terHolderDepositAndWithdraw() public {
+        dealERC721(address(SLX.M3ter()), here, 1);
+
         uint256 SLX_InitialBalance = SLX.balanceOf(here);
         uint256 sDAI_initialBalance = sDAI.balanceOf(SLX_address);
 
@@ -95,7 +113,9 @@ contract SolaxyTest is Test {
         assertEq(SLX_feeBalance, 1795000000000000000);
     }
 
-    function testMintAndRedeem() public {
+    function testM3terHolderMintAndRedeem() public {
+        dealERC721(address(SLX.M3ter()), here, 1);
+
         uint256 SLX_initialBalance = SLX.balanceOf(here);
         uint256 sDAI_initialBalance = sDAI.balanceOf(SLX_address);
 
@@ -145,7 +165,7 @@ contract SolaxyTest is Test {
         assertEq(SLX_feeBalance, 1793880000000000000);
     }
 
-    function testKnowAccountHoldingsOnMinnet() public {
+    function testKnowAccountBalance() public {
         uint256 knowHolderBalance = sDAI.balanceOf(sDAI_address);
         assertApproxEqAbs(knowHolderBalance, 30.5e18, 0.001e18, "sDAI balance should approximately equal 30.49 sDAI");
     }

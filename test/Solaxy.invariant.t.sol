@@ -10,7 +10,7 @@ import {Solaxy} from "../src/Solaxy.sol";
 import {IERC20} from "@openzeppelin/contracts@4.9.3/interfaces/IERC20.sol";
 import {CannotBeZero, Undersupply} from "../src/interfaces/ISolaxy.sol";
 
-uint256 constant sDAI_OneBillion = 1e9 * 1e18;
+uint256 constant sDAI_balanceOneBillion = 1e9 * 1e18;
 
 contract Handler is CommonBase, StdCheats, StdUtils {
     Solaxy private SLX;
@@ -19,7 +19,7 @@ contract Handler is CommonBase, StdCheats, StdUtils {
     constructor(Solaxy slx, IERC20 sdai) {
         SLX = slx;
         sDAI = sdai;
-        sDAI.approve(address(slx), sDAI_OneBillion);
+        sDAI.approve(address(slx), sDAI_balanceOneBillion);
     }
 
     function deposit(uint256 assets) public {
@@ -44,7 +44,7 @@ contract Handler is CommonBase, StdCheats, StdUtils {
     function redeem(uint256 shares) public {
         shares = bound(shares, 1e8, 1e20);
         if (shares > SLX.totalSupply()) vm.expectRevert(Undersupply.selector);
-        if (shares > SLX.balanceOf(address(this))) vm.expectRevert(bytes("ERC20: transfer amount exceeds balance"));
+        if (shares > SLX.balanceOf(address(this))) vm.expectRevert(bytes("ERC20: burn amount exceeds balance"));
         SLX.redeem(shares, address(this), address(this));
     }
 }
@@ -59,7 +59,7 @@ contract SolaxyInvarantTest is Test {
 
     function setUp() public {
         string memory url = vm.rpcUrl("gnosis-mainnet");
-        vm.createSelectFork(url);
+        vm.createSelectFork(url, 31_351_993);
 
         SLX = new Solaxy(address(99));
         SLX_address = address(SLX);
@@ -69,15 +69,16 @@ contract SolaxyInvarantTest is Test {
 
         handler = new Handler(SLX, sDAI);
         handlerAddress = address(handler);
-        deal(sDAI_address, handlerAddress, sDAI_OneBillion, true);
-        targetContract(handlerAddress);
 
+        deal(sDAI_address, handlerAddress, sDAI_balanceOneBillion, true);
         dealERC721(address(SLX.M3ter()), handlerAddress, 1);
+
+        targetContract(handlerAddress);
     }
 
     function invariantValuation() public {
         uint256 sDAI_balanceAfterTest = sDAI.balanceOf(handlerAddress);
-        uint256 solaxyTVL = sDAI_OneBillion - sDAI_balanceAfterTest;
+        uint256 solaxyTVL = sDAI_balanceOneBillion - sDAI_balanceAfterTest;
         assertEq(SLX.totalAssets(), solaxyTVL, "Total value locked should be strictly equal to total reserve assets");
 
         uint256 totalFees = SLX.balanceOf(address(99));
@@ -95,7 +96,7 @@ contract SolaxyInvarantTest is Test {
         );
     }
 
-    function testKnowAccountHoldingsOnMinnet() public {
+    function testKnowAccountBalance() public {
         uint256 knowHolderBalance = sDAI.balanceOf(sDAI_address);
         assertApproxEqAbs(knowHolderBalance, 30.5e18, 0.001e18, "sDAI balance should approximately equal 30.49 sDAI");
     }

@@ -12,7 +12,7 @@ remappings = [
 ]
 
 [rpc_endpoints]
-gnosis-mainnet = "https://rpc.ankr.com/gnosis"
+gnosis-mainnet = "https://gnosis-rpc.publicnode.com"
 
 [fuzz]
 seed = "0x544D"

@@ -59,7 +59,7 @@ contract SolaxyInvarantTest is Test {
 
     function setUp() public {
         string memory url = vm.rpcUrl("gnosis-mainnet");
-        vm.createSelectFork(url, 31_351_993);
+        vm.createSelectFork(url);
 
         SLX = new Solaxy(address(99));
         SLX_address = address(SLX);

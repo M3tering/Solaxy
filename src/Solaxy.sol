@@ -12,20 +12,20 @@ import {IERC721} from "@openzeppelin/contracts@4.9.3/interfaces/IERC721.sol";
  * @dev Adheres to ERC-20 token standard and uses the ERC-4626 tokenized vault interface for bonding curve operations.
  */
 contract Solaxy is XRC20, ISolaxy {
-    address public immutable feeAddress;
-    UD60x18 public constant slope = UD60x18.wrap(0.0025e18);
-    UD60x18 public constant halfSlope = UD60x18.wrap(0.00125e18);
-    ERC20 public constant sDAI = ERC20(0xaf204776c7245bF4147c2612BF6e5972Ee483701);
-    IERC721 public constant M3ter = IERC721(0xbCFeFea1e83060DbCEf2Ed0513755D049fDE952C); // TODO: M3ter Address
+    address public immutable FEE_ADDRESS;
+    UD60x18 public constant SLOPE = UD60x18.wrap(0.0025e18);
+    UD60x18 public constant HALF_SLOPE = UD60x18.wrap(0.00125e18);
+    ERC20 public constant SDAI = ERC20(0xaf204776c7245bF4147c2612BF6e5972Ee483701);
+    IERC721 public constant M3TER = IERC721(0xbCFeFea1e83060DbCEf2Ed0513755D049fDE952C); // TODO: M3ter Address
 
     /**
      * @dev Constructs the Solaxy contract, initializing the sDAI token and the fee address.
      * @param feeAccount The address where fees will be sent to.
      */
     constructor(address feeAccount) ERC20("Solaxy", "SLX") ERC20Permit("Solaxy") {
-        if (address(sDAI) == address(0)) revert CannotBeZero();
+        if (address(SDAI) == address(0)) revert CannotBeZero();
         if (feeAccount == address(0)) revert CannotBeZero();
-        feeAddress = feeAccount;
+        FEE_ADDRESS = feeAccount;
     }
 
     /**
@@ -39,7 +39,7 @@ contract Solaxy is XRC20, ISolaxy {
      * @dev See {IERC4626-deposit}.
      */
     function deposit(uint256 assets, address receiver) external returns (uint256 shares) {
-        if (M3ter.balanceOf(msg.sender) < 1) revert RequiresM3ter();
+        if (M3TER.balanceOf(msg.sender) < 1) revert RequiresM3ter();
         shares = computeDeposit(assets, totalSupply());
         _deposit(receiver, assets, shares);
     }
@@ -48,7 +48,7 @@ contract Solaxy is XRC20, ISolaxy {
      * @dev See {IERC4626-withdraw}.
      */
     function withdraw(uint256 assets, address receiver, address owner) external returns (uint256 shares) {
-        if (M3ter.balanceOf(msg.sender) < 1) revert RequiresM3ter();
+        if (M3TER.balanceOf(msg.sender) < 1) revert RequiresM3ter();
         uint256 fee;
         (shares, fee) = computeWithdraw(assets, totalSupply());
         _withdraw(receiver, owner, assets, shares, fee);
@@ -58,7 +58,7 @@ contract Solaxy is XRC20, ISolaxy {
      * @dev See {IERC4626-mint}.
      */
     function mint(uint256 shares, address receiver) external returns (uint256 assets) {
-        if (M3ter.balanceOf(msg.sender) < 1) revert RequiresM3ter();
+        if (M3TER.balanceOf(msg.sender) < 1) revert RequiresM3ter();
         assets = computeMint(shares, totalSupply());
         _deposit(receiver, assets, shares);
     }
@@ -67,7 +67,7 @@ contract Solaxy is XRC20, ISolaxy {
      * @dev See {IERC4626-redeem}.
      */
     function redeem(uint256 shares, address receiver, address owner) external returns (uint256 assets) {
-        if (M3ter.balanceOf(msg.sender) < 1) revert RequiresM3ter();
+        if (M3TER.balanceOf(msg.sender) < 1) revert RequiresM3ter();
         uint256 fee;
         (shares, assets, fee) = computeRedeem(shares, totalSupply());
         _withdraw(receiver, owner, assets, shares, fee);
@@ -78,7 +78,7 @@ contract Solaxy is XRC20, ISolaxy {
      * @param minSharesOut The minimum number of shares the sender expects to receive.
      */
     function safeDeposit(uint256 assets, address receiver, uint256 minSharesOut) external returns (uint256 shares) {
-        if (M3ter.balanceOf(msg.sender) < 1) revert RequiresM3ter();
+        if (M3TER.balanceOf(msg.sender) < 1) revert RequiresM3ter();
         shares = computeDeposit(assets, totalSupply());
         if (shares < minSharesOut) revert SlippageError();
         _deposit(receiver, assets, shares);
@@ -92,7 +92,7 @@ contract Solaxy is XRC20, ISolaxy {
         external
         returns (uint256 shares)
     {
-        if (M3ter.balanceOf(msg.sender) < 1) revert RequiresM3ter();
+        if (M3TER.balanceOf(msg.sender) < 1) revert RequiresM3ter();
         uint256 fee;
         (shares, fee) = computeWithdraw(assets, totalSupply());
         if (shares > maxSharesIn) revert SlippageError();
@@ -104,7 +104,7 @@ contract Solaxy is XRC20, ISolaxy {
      * @param maxAssetsIn The maximum amount of assets the sender is willing to deposit.
      */
     function safeMint(uint256 shares, address receiver, uint256 maxAssetsIn) external returns (uint256 assets) {
-        if (M3ter.balanceOf(msg.sender) < 1) revert RequiresM3ter();
+        if (M3TER.balanceOf(msg.sender) < 1) revert RequiresM3ter();
         assets = computeMint(shares, totalSupply());
         if (assets > maxAssetsIn) revert SlippageError();
         _deposit(receiver, assets, shares);
@@ -118,7 +118,7 @@ contract Solaxy is XRC20, ISolaxy {
         external
         returns (uint256 assets)
     {
-        if (M3ter.balanceOf(msg.sender) < 1) revert RequiresM3ter();
+        if (M3TER.balanceOf(msg.sender) < 1) revert RequiresM3ter();
         uint256 fee;
         (shares, assets, fee) = computeRedeem(shares, totalSupply());
         if (assets < minAssetsOut) revert SlippageError();
@@ -165,7 +165,7 @@ contract Solaxy is XRC20, ISolaxy {
      * @return price The current price along the bonding curve.
      */
     function currentPrice() external view returns (UD60x18) {
-        return ud60x18(totalSupply()).mul(slope);
+        return ud60x18(totalSupply()).mul(SLOPE);
     }
 
     /**
@@ -173,7 +173,7 @@ contract Solaxy is XRC20, ISolaxy {
      */
     function convertToShares(uint256 assets) external view returns (uint256 shares) {
         if (totalAssets() < assets) revert Undersupply();
-        UD60x18 conversionPrice = ud60x18(totalSupply()).mul(halfSlope);
+        UD60x18 conversionPrice = ud60x18(totalSupply()).mul(HALF_SLOPE);
         shares = ud60x18(assets).div(conversionPrice).intoUint256();
     }
 
@@ -182,7 +182,7 @@ contract Solaxy is XRC20, ISolaxy {
      */
     function convertToAssets(uint256 shares) external view returns (uint256 assets) {
         if (totalSupply() < shares) revert Undersupply();
-        UD60x18 conversionPrice = ud60x18(totalSupply()).mul(halfSlope);
+        UD60x18 conversionPrice = ud60x18(totalSupply()).mul(HALF_SLOPE);
         assets = ud60x18(shares).mul(conversionPrice).intoUint256();
     }
 
@@ -218,14 +218,14 @@ contract Solaxy is XRC20, ISolaxy {
      * @dev See {IERC4626-asset}.
      */
     function asset() external pure returns (address assetTokenAddress) {
-        return address(sDAI);
+        return address(SDAI);
     }
 
     /**
      * @dev See {IERC4626-totalAssets}.
      */
     function totalAssets() public view returns (uint256 totalManagedAssets) {
-        totalManagedAssets = sDAI.balanceOf(address(this));
+        totalManagedAssets = SDAI.balanceOf(address(this));
     }
 
     /**
@@ -238,7 +238,7 @@ contract Solaxy is XRC20, ISolaxy {
      */
     function computeDeposit(uint256 assets, uint256 totalSupply) public pure returns (uint256 shares) {
         UD60x18 initialSupply = ud60x18(totalSupply);
-        shares = initialSupply.powu(2).add(ud60x18(assets).div(halfSlope)).sqrt().sub(initialSupply).intoUint256();
+        shares = initialSupply.powu(2).add(ud60x18(assets).div(HALF_SLOPE)).sqrt().sub(initialSupply).intoUint256();
     }
 
     /**
@@ -254,7 +254,7 @@ contract Solaxy is XRC20, ISolaxy {
      */
     function computeWithdraw(uint256 assets, uint256 totalSupply) public pure returns (uint256 shares, uint256 fee) {
         UD60x18 initialSupply = ud60x18(totalSupply);
-        UD60x18 withdrawnShares = initialSupply.sub(initialSupply.powu(2).sub(ud60x18(assets).div(halfSlope)).sqrt());
+        UD60x18 withdrawnShares = initialSupply.sub(initialSupply.powu(2).sub(ud60x18(assets).div(HALF_SLOPE)).sqrt());
 
         shares = withdrawnShares.intoUint256();
         fee = withdrawnShares.mul(ud60x18(0.359e18)).intoUint256();
@@ -300,7 +300,7 @@ contract Solaxy is XRC20, ISolaxy {
     function _deposit(address receiver, uint256 assets, uint256 shares) internal {
         if (assets == 0) revert CannotBeZero();
         if (shares == 0) revert CannotBeZero();
-        if (!sDAI.transferFrom(msg.sender, address(this), assets)) {
+        if (!SDAI.transferFrom(msg.sender, address(this), assets)) {
             revert TransferError();
         }
         emit Deposit(msg.sender, receiver, assets, shares);
@@ -321,8 +321,8 @@ contract Solaxy is XRC20, ISolaxy {
         }
         _burn(owner, shares);
 
-        if (!transfer(feeAddress, fee)) revert TransferError();
-        if (!sDAI.transfer(receiver, assets)) revert TransferError();
+        if (!transfer(FEE_ADDRESS, fee)) revert TransferError();
+        if (!SDAI.transfer(receiver, assets)) revert TransferError();
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
 
@@ -340,6 +340,6 @@ contract Solaxy is XRC20, ISolaxy {
      */
     function _convertToAssets(UD60x18 juniorSupply, UD60x18 seniorSupply) internal pure returns (UD60x18 assets) {
         UD60x18 sqrDiff = seniorSupply.powu(2).sub(juniorSupply.powu(2));
-        return sqrDiff.mul(halfSlope);
+        return sqrDiff.mul(HALF_SLOPE);
     }
 }

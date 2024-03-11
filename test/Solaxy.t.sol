@@ -65,7 +65,7 @@ contract SolaxyTestWithoutM3ter is Test {
     }
 
     function testM3terHolderDepositAndWithdraw() public {
-        dealERC721(address(SLX.M3ter()), here, 1);
+        dealERC721(address(SLX.M3TER()), here, 1);
 
         uint256 SLX_InitialBalance = SLX.balanceOf(here);
         uint256 sDAI_initialBalance = sDAI.balanceOf(SLX_address);
@@ -114,7 +114,7 @@ contract SolaxyTestWithoutM3ter is Test {
     }
 
     function testM3terHolderMintAndRedeem() public {
-        dealERC721(address(SLX.M3ter()), here, 1);
+        dealERC721(address(SLX.M3TER()), here, 1);
 
         uint256 SLX_initialBalance = SLX.balanceOf(here);
         uint256 sDAI_initialBalance = sDAI.balanceOf(SLX_address);

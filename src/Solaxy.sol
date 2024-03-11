@@ -29,13 +29,6 @@ contract Solaxy is XRC20, ISolaxy {
     }
 
     /**
-     * @dev Fallback function to revert Ether transfers directly to the contract.
-     */
-    receive() external payable {
-        revert PayableErr();
-    }
-
-    /**
      * @dev See {IERC4626-deposit}.
      */
     function deposit(uint256 assets, address receiver) external returns (uint256 shares) {

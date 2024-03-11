@@ -3,11 +3,11 @@ pragma solidity ^0.8.19;
 
 import {Test} from "forge-std/Test.sol";
 import {Solaxy} from "../src/Solaxy.sol";
-import {PayableErr, RequiresM3ter} from "../src/interfaces/ISolaxy.sol";
+import {RequiresM3ter} from "../src/interfaces/ISolaxy.sol";
 import {IERC20} from "@openzeppelin/contracts@5.0.2/interfaces/IERC20.sol";
 import {IERC721} from "@openzeppelin/contracts@5.0.2/interfaces/IERC721.sol";
 
-contract SolaxyTestWithoutM3ter is Test {
+contract SolaxyUnitTest is Test {
     Solaxy public SLX;
     IERC20 public sDAI;
     address public here;
@@ -41,26 +41,22 @@ contract SolaxyTestWithoutM3ter is Test {
     }
 
     function testSendEtherToContract() public {
-        vm.expectRevert(PayableErr.selector); // expect a transaction revert during test.
+        vm.expectRevert(); // expect a transaction revert during test.
         payable(SLX_address).transfer(1 ether); // Sending 1 Ether to the contract
         assertEq(SLX_address.balance, 0 ether, "asset ether balance is still equal to zero");
     }
 
     function testNonM3terHolder() public {
         vm.expectRevert(RequiresM3ter.selector);
-        // Deposit sDAI to Solaxy contract
         SLX.deposit(sDAI_amountDeposited, here);
 
         vm.expectRevert(RequiresM3ter.selector);
-        // Withdraw sDAI from Solaxy contract
         SLX.withdraw(sDAI_amountWithdrawn, here, here);
 
         vm.expectRevert(RequiresM3ter.selector);
-        // Mint new SLX tokens
         SLX.mint(SLX_amountMinted, here);
 
         vm.expectRevert(RequiresM3ter.selector);
-        // Redeem SLX tokens
         SLX.redeem(SLX_amountIn, here, here);
     }
 

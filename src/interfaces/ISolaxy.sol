@@ -4,7 +4,6 @@ pragma solidity ^0.8.24;
 import {IERC4626} from "@openzeppelin/contracts@5.0.2/interfaces/IERC4626.sol";
 import {UD60x18} from "@prb/math@4.0.2/src/UD60x18.sol";
 
-error PayableErr();
 error Undersupply();
 error CannotBeZero();
 error SlippageError();

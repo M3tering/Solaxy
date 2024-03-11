@@ -4,8 +4,8 @@ pragma solidity ^0.8.19;
 import {Test} from "forge-std/Test.sol";
 import {Solaxy} from "../src/Solaxy.sol";
 import {PayableErr, RequiresM3ter} from "../src/interfaces/ISolaxy.sol";
-import {IERC20} from "@openzeppelin/contracts@4.9.3/interfaces/IERC20.sol";
-import {IERC721} from "@openzeppelin/contracts@4.9.3/interfaces/IERC721.sol";
+import {IERC20} from "@openzeppelin/contracts@5.0.2/interfaces/IERC20.sol";
+import {IERC721} from "@openzeppelin/contracts@5.0.2/interfaces/IERC721.sol";
 
 contract SolaxyTestWithoutM3ter is Test {
     Solaxy public SLX;

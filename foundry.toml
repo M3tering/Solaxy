@@ -4,11 +4,11 @@ out = "out"
 libs = ["lib"]
 optimizer = true
 optimizer-runs = 1000
-solc-version = "0.8.19"
+solc-version = "0.8.24"
 
 remappings = [
-    "@prb/math@4.0.1/=lib/prb-math/",
-    "@openzeppelin/contracts@4.9.3/=lib/openzeppelin-contracts/contracts/"
+    "@prb/math@4.0.2/=lib/prb-math/",
+    "@openzeppelin/contracts@5.0.2/=lib/openzeppelin-contracts/contracts/"
 ]
 
 [rpc_endpoints]

@@ -13,6 +13,7 @@ remappings = [
 
 [rpc_endpoints]
 gnosis-mainnet = "https://gnosis-rpc.publicnode.com"
+chiado-testnet = "https://rpc.chiadochain.net"
 
 [fuzz]
 seed = "0x544D"

@@ -71,8 +71,6 @@ contract SolaxyInvarantTest is Test {
         handlerAddress = address(handler);
 
         deal(sDAI_address, handlerAddress, sDAI_balanceOneBillion, true);
-        dealERC721(address(SLX.M3TER()), handlerAddress, 1);
-
         targetContract(handlerAddress);
     }
 

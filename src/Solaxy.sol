@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "./XRC20.sol";
+import "./ERC20ABC.sol";
 import "./interfaces/ISolaxy.sol";
 import {UD60x18, ud60x18} from "@prb/math@4.0.2/src/UD60x18.sol";
 import {IERC721} from "@openzeppelin/contracts@5.0.2/interfaces/IERC721.sol";
@@ -11,7 +11,7 @@ import {IERC721} from "@openzeppelin/contracts@5.0.2/interfaces/IERC721.sol";
  * @notice Token contract implementing a linear sDAI-backed bonding curve where the solpe is 25 basis points (0.0025).
  * @dev Adheres to ERC-20 token standard and uses the ERC-4626 tokenized vault interface for bonding curve operations.
  */
-contract Solaxy is XRC20, ISolaxy {
+contract Solaxy is ERC20ABC, ISolaxy {
     address public immutable FEE_ADDRESS;
     UD60x18 public constant SLOPE = UD60x18.wrap(0.0025e18);
     UD60x18 public constant HALF_SLOPE = UD60x18.wrap(0.00125e18);

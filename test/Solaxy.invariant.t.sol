@@ -92,10 +92,9 @@ contract SolaxyInvarantTest is Test {
             "Total user holdings plus all fees collected should be strictly equal to the total token supply"
         );
 
-        assertApproxEqAbs(
-            SLX.totalAssets(),
+        assertGe(
+            SLX.totalAssets() + 1 wei,
             SLX.convertToAssets(SLX.totalSupply()),
-            1,
             "Total reserve assets must be enough to cover the converstion of all existing tokens with a margin of error of only 1e-18 sDAI"
         );
     }

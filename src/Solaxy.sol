@@ -16,6 +16,7 @@ contract Solaxy is ERC20ABC, ISolaxy {
     UD60x18 public constant SLOPE = UD60x18.wrap(0.0025e18);
     UD60x18 public constant HALF_SLOPE = UD60x18.wrap(0.00125e18);
     ERC20 public constant SDAI = ERC20(0xaf204776c7245bF4147c2612BF6e5972Ee483701);
+    IERC721 public constant M3TER = IERC721(0xbCFeFea1e83060DbCEf2Ed0513755D049fDE952C); // TODO: M3ter Address
 
     /**
      * @dev Constructs the Solaxy contract, initializing the sDAI token and the fee address.
@@ -31,6 +32,7 @@ contract Solaxy is ERC20ABC, ISolaxy {
      * @dev See {IERC4626-deposit}.
      */
     function deposit(uint256 assets, address receiver) external returns (uint256 shares) {
+        if (M3TER.balanceOf(receiver) < 1) revert RequiresM3ter();
         shares = computeDeposit(assets, totalSupply());
         _deposit(receiver, assets, shares);
     }
@@ -48,6 +50,7 @@ contract Solaxy is ERC20ABC, ISolaxy {
      * @dev See {IERC4626-mint}.
      */
     function mint(uint256 shares, address receiver) external returns (uint256 assets) {
+        if (M3TER.balanceOf(receiver) < 1) revert RequiresM3ter();
         assets = computeMint(shares, totalSupply());
         _deposit(receiver, assets, shares);
     }
@@ -66,6 +69,7 @@ contract Solaxy is ERC20ABC, ISolaxy {
      * @param minSharesOut The minimum number of shares the sender expects to receive.
      */
     function safeDeposit(uint256 assets, address receiver, uint256 minSharesOut) external returns (uint256 shares) {
+        if (M3TER.balanceOf(receiver) < 1) revert RequiresM3ter();
         shares = computeDeposit(assets, totalSupply());
         if (shares < minSharesOut) revert SlippageError();
         _deposit(receiver, assets, shares);
@@ -90,6 +94,7 @@ contract Solaxy is ERC20ABC, ISolaxy {
      * @param maxAssetsIn The maximum amount of assets the sender is willing to deposit.
      */
     function safeMint(uint256 shares, address receiver, uint256 maxAssetsIn) external returns (uint256 assets) {
+        if (M3TER.balanceOf(receiver) < 1) revert RequiresM3ter();
         assets = computeMint(shares, totalSupply());
         if (assets > maxAssetsIn) revert SlippageError();
         _deposit(receiver, assets, shares);

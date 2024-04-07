@@ -25,7 +25,9 @@ contract Handler is CommonBase, StdCheats, StdUtils {
     function deposit(uint256 assets) public {
         assets = bound(assets, 1e8, 1e20);
         if (assets == 0) vm.expectRevert(CannotBeZero.selector);
-        if (assets > sDAI.balanceOf(address(this))) vm.expectRevert(bytes("ERC20: transfer amount exceeds balance"));
+        if (assets > sDAI.balanceOf(address(this))) {
+            vm.expectRevert(bytes("ERC20: transfer amount exceeds balance"));
+        }
         SLX.deposit(assets, address(this));
     }
 
@@ -44,7 +46,9 @@ contract Handler is CommonBase, StdCheats, StdUtils {
     function redeem(uint256 shares) public {
         shares = bound(shares, 1e8, 1e20);
         if (shares > SLX.totalSupply()) vm.expectRevert(Undersupply.selector);
-        if (shares > SLX.balanceOf(address(this))) vm.expectRevert(bytes("ERC20: burn amount exceeds balance"));
+        if (shares > SLX.balanceOf(address(this))) {
+            vm.expectRevert(bytes("ERC20: burn amount exceeds balance"));
+        }
         SLX.redeem(shares, address(this), address(this));
     }
 }
@@ -71,6 +75,7 @@ contract SolaxyInvarantTest is Test {
         handlerAddress = address(handler);
 
         deal(sDAI_address, handlerAddress, sDAI_balanceOneBillion, true);
+        dealERC721(address(SLX.M3TER()), handlerAddress, 1);
         targetContract(handlerAddress);
     }
 
@@ -87,10 +92,11 @@ contract SolaxyInvarantTest is Test {
             "Total user holdings plus all fees collected should be strictly equal to the total token supply"
         );
 
-        assertGe(
+        assertApproxEqAbs(
             SLX.totalAssets(),
             SLX.convertToAssets(SLX.totalSupply()),
-            "Total reserve assets must at least be enough to cover the converstion of all existing tokens"
+            1,
+            "Total reserve assets must be enough to cover the converstion of all existing tokens with a margin of error of only 1e-18 sDAI"
         );
     }
 

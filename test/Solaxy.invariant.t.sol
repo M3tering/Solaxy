@@ -65,7 +65,7 @@ contract SolaxyInvarantTest is Test {
         string memory url = vm.rpcUrl("gnosis-mainnet");
         vm.createSelectFork(url);
 
-        SLX = new Solaxy(address(99));
+        SLX = new Solaxy();
         SLX_address = address(SLX);
 
         sDAI_address = SLX.asset();
@@ -84,7 +84,7 @@ contract SolaxyInvarantTest is Test {
         uint256 solaxyTVL = sDAI_balanceOneBillion - sDAI_balanceAfterTest;
         assertEq(SLX.totalAssets(), solaxyTVL, "Total value locked should be strictly equal to total reserve assets");
 
-        uint256 totalFees = SLX.balanceOf(address(99));
+        uint256 totalFees = SLX.balanceOf(SLX.FEE_ACCOUNT());
         uint256 totalHoldings = SLX.balanceOf(handlerAddress);
         assertEq(
             SLX.totalSupply(),

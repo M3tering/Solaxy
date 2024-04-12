@@ -12,8 +12,8 @@ import {IERC721} from "@openzeppelin/contracts@5.0.2/interfaces/IERC721.sol";
  * @dev Adheres to ERC-20 token standard and uses the ERC-4626 tokenized vault interface for bonding curve operations.
  */
 contract Solaxy is ERC20ABC, ISolaxy {
-    address public constant FEE_ACCOUNT = 0xbCFeFea1e83060DbCEf2Ed0513755D049fDE952C; // TODO: fee Address
-    IERC721 public constant M3TER = IERC721(0xbCFeFea1e83060DbCEf2Ed0513755D049fDE952C); // TODO: M3ter Address
+    address public constant FEE_ACCOUNT = 0xE47b1bcDb3Bed18e5a8dA5aa6E7c7a7F4b5Bd50a;
+    IERC721 public constant M3TER = IERC721(0x39fb420Bd583cCC8Afd1A1eAce2907fe300ABD02);
     ERC20 public constant SDAI = ERC20(0xaf204776c7245bF4147c2612BF6e5972Ee483701);
     UD60x18 public constant HALF_SLOPE = UD60x18.wrap(0.00125e18);
     UD60x18 public constant SLOPE = UD60x18.wrap(0.0025e18);
@@ -22,6 +22,7 @@ contract Solaxy is ERC20ABC, ISolaxy {
      * @dev Constructs the Solaxy contract, checks the sDAI token address and the fee account address.
      */
     constructor() ERC20("Solaxy", "SLX") ERC20Permit("Solaxy") {
+        if (address(M3TER) == address(0)) revert CannotBeZero();
         if (address(SDAI) == address(0)) revert CannotBeZero();
         if (FEE_ACCOUNT == address(0)) revert CannotBeZero();
     }

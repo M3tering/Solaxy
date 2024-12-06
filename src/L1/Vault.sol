@@ -1,30 +1,33 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "./ERC20ABC.sol";
-import "./interfaces/ISolaxy.sol";
+import "./Solaxy.sol";
+import "../interfaces/IVault.sol";
 import {UD60x18, ud60x18} from "@prb/math@4.0.2/src/UD60x18.sol";
+import {IERC20} from "@openzeppelin/contracts@5.0.2/interfaces/IERC20.sol";
 import {IERC721} from "@openzeppelin/contracts@5.0.2/interfaces/IERC721.sol";
 
 /**
- * @title Solaxy
+ * @title SolaxyVault
  * @notice Token contract implementing a linear sDAI-backed bonding curve where the solpe is 25 basis points (0.0025).
- * @dev Adheres to ERC-20 token standard and uses the ERC-4626 tokenized vault interface for bonding curve operations.
+ * @dev Adheres to the ERC-4626 tokenized vault interface for bonding curve operations.
  */
-contract Solaxy is ERC20ABC, ISolaxy {
-    address public constant FEE_ACCOUNT = 0xE47b1bcDb3Bed18e5a8dA5aa6E7c7a7F4b5Bd50a;
-    IERC721 public constant M3TER = IERC721(0x39fb420Bd583cCC8Afd1A1eAce2907fe300ABD02);
-    ERC20 public constant SDAI = ERC20(0xaf204776c7245bF4147c2612BF6e5972Ee483701);
+contract SolaxyVault is IVault {
+    address public constant FEE_ACCOUNT = 0xE47b1bcDb3Bed18e5a8dA5aa6E7c7a7F4b5Bd50a; // ToDo: sett addresses
+    IERC20 public constant SDAI = IERC20(0xaf204776c7245bF4147c2612BF6e5972Ee483701); // ToDo: sett addresses
+    IERC721 public constant M3TER = IERC721(0x39fb420Bd583cCC8Afd1A1eAce2907fe300ABD02); // ToDo: sett addresses
     UD60x18 public constant HALF_SLOPE = UD60x18.wrap(0.00125e18);
     UD60x18 public constant SLOPE = UD60x18.wrap(0.0025e18);
+    Solaxy public immutable solaxy;
 
     /**
      * @dev Constructs the Solaxy contract, checks the sDAI token address and the fee account address.
      */
-    constructor() ERC20("Solaxy", "SLX") ERC20Permit("Solaxy") {
+    constructor() {
         if (address(M3TER) == address(0)) revert CannotBeZero();
         if (address(SDAI) == address(0)) revert CannotBeZero();
         if (FEE_ACCOUNT == address(0)) revert CannotBeZero();
+        solaxy = new Solaxy(address(this)); // Todo: precompute address and create2
     }
 
     /**
@@ -32,7 +35,7 @@ contract Solaxy is ERC20ABC, ISolaxy {
      */
     function deposit(uint256 assets, address receiver) external returns (uint256 shares) {
         if (M3TER.balanceOf(receiver) < 1) revert RequiresM3ter();
-        shares = computeDeposit(assets, totalSupply());
+        shares = computeDeposit(assets, solaxy.totalSupply());
         _deposit(receiver, assets, shares);
     }
 
@@ -41,7 +44,7 @@ contract Solaxy is ERC20ABC, ISolaxy {
      */
     function withdraw(uint256 assets, address receiver, address owner) external returns (uint256 shares) {
         uint256 fee;
-        (shares, fee) = computeWithdraw(assets, totalSupply());
+        (shares, fee) = computeWithdraw(assets, solaxy.totalSupply());
         _withdraw(receiver, owner, assets, shares, fee);
     }
 
@@ -50,7 +53,7 @@ contract Solaxy is ERC20ABC, ISolaxy {
      */
     function mint(uint256 shares, address receiver) external returns (uint256 assets) {
         if (M3TER.balanceOf(receiver) < 1) revert RequiresM3ter();
-        assets = computeMint(shares, totalSupply());
+        assets = computeMint(shares, solaxy.totalSupply());
         _deposit(receiver, assets, shares);
     }
 
@@ -59,7 +62,7 @@ contract Solaxy is ERC20ABC, ISolaxy {
      */
     function redeem(uint256 shares, address receiver, address owner) external returns (uint256 assets) {
         uint256 fee;
-        (shares, assets, fee) = computeRedeem(shares, totalSupply());
+        (shares, assets, fee) = computeRedeem(shares, solaxy.totalSupply());
         _withdraw(receiver, owner, assets, shares, fee);
     }
 
@@ -69,7 +72,7 @@ contract Solaxy is ERC20ABC, ISolaxy {
      */
     function safeDeposit(uint256 assets, address receiver, uint256 minSharesOut) external returns (uint256 shares) {
         if (M3TER.balanceOf(receiver) < 1) revert RequiresM3ter();
-        shares = computeDeposit(assets, totalSupply());
+        shares = computeDeposit(assets, solaxy.totalSupply());
         if (shares < minSharesOut) revert SlippageError();
         _deposit(receiver, assets, shares);
     }
@@ -83,7 +86,7 @@ contract Solaxy is ERC20ABC, ISolaxy {
         returns (uint256 shares)
     {
         uint256 fee;
-        (shares, fee) = computeWithdraw(assets, totalSupply());
+        (shares, fee) = computeWithdraw(assets, solaxy.totalSupply());
         if (shares > maxSharesIn) revert SlippageError();
         _withdraw(receiver, owner, assets, shares, fee);
     }
@@ -94,7 +97,7 @@ contract Solaxy is ERC20ABC, ISolaxy {
      */
     function safeMint(uint256 shares, address receiver, uint256 maxAssetsIn) external returns (uint256 assets) {
         if (M3TER.balanceOf(receiver) < 1) revert RequiresM3ter();
-        assets = computeMint(shares, totalSupply());
+        assets = computeMint(shares, solaxy.totalSupply());
         if (assets > maxAssetsIn) revert SlippageError();
         _deposit(receiver, assets, shares);
     }
@@ -108,7 +111,7 @@ contract Solaxy is ERC20ABC, ISolaxy {
         returns (uint256 assets)
     {
         uint256 fee;
-        (shares, assets, fee) = computeRedeem(shares, totalSupply());
+        (shares, assets, fee) = computeRedeem(shares, solaxy.totalSupply());
         if (assets < minAssetsOut) revert SlippageError();
         _withdraw(receiver, owner, assets, shares, fee);
     }
@@ -117,7 +120,7 @@ contract Solaxy is ERC20ABC, ISolaxy {
      * @dev See {IERC4626-previewDeposit}.
      */
     function previewDeposit(uint256 assets) external view returns (uint256 shares) {
-        return computeDeposit(assets, totalSupply());
+        return computeDeposit(assets, solaxy.totalSupply());
     }
 
     /**
@@ -126,7 +129,7 @@ contract Solaxy is ERC20ABC, ISolaxy {
     function previewWithdraw(uint256 assets) external view returns (uint256 shares) {
         uint256 fee;
         if (totalAssets() < assets) revert Undersupply();
-        (shares, fee) = computeWithdraw(assets, totalSupply());
+        (shares, fee) = computeWithdraw(assets, solaxy.totalSupply());
         return shares + fee;
     }
 
@@ -134,15 +137,15 @@ contract Solaxy is ERC20ABC, ISolaxy {
      * @dev See {IERC4626-previewMint}.
      */
     function previewMint(uint256 shares) external view returns (uint256 assets) {
-        return computeMint(shares, totalSupply());
+        return computeMint(shares, solaxy.totalSupply());
     }
 
     /**
      * @dev See {IERC4626-previewRedeem}.
      */
     function previewRedeem(uint256 shares) external view returns (uint256 assets) {
-        if (totalSupply() < shares) revert Undersupply();
-        (, assets,) = computeRedeem(shares, totalSupply());
+        if (solaxy.totalSupply() < shares) revert Undersupply();
+        (, assets,) = computeRedeem(shares, solaxy.totalSupply());
     }
 
     /**
@@ -152,8 +155,8 @@ contract Solaxy is ERC20ABC, ISolaxy {
      *
      * @return price The current price along the bonding curve.
      */
-    function currentPrice() external view returns (UD60x18) {
-        return ud60x18(totalSupply()).mul(SLOPE);
+    function currentPrice() external view returns (uint256) {
+        return ud60x18(solaxy.totalSupply()).mul(SLOPE).intoUint256();
     }
 
     /**
@@ -161,7 +164,7 @@ contract Solaxy is ERC20ABC, ISolaxy {
      */
     function convertToShares(uint256 assets) external view returns (uint256 shares) {
         if (totalAssets() < assets) revert Undersupply();
-        UD60x18 conversionPrice = ud60x18(totalSupply()).mul(HALF_SLOPE);
+        UD60x18 conversionPrice = ud60x18(solaxy.totalSupply()).mul(HALF_SLOPE);
         shares = ud60x18(assets).div(conversionPrice).intoUint256();
     }
 
@@ -169,8 +172,8 @@ contract Solaxy is ERC20ABC, ISolaxy {
      * @dev See {IERC4626-convertToAssets}.
      */
     function convertToAssets(uint256 shares) external view returns (uint256 assets) {
-        if (totalSupply() < shares) revert Undersupply();
-        UD60x18 conversionPrice = ud60x18(totalSupply()).mul(HALF_SLOPE);
+        if (solaxy.totalSupply() < shares) revert Undersupply();
+        UD60x18 conversionPrice = ud60x18(solaxy.totalSupply()).mul(HALF_SLOPE);
         assets = ud60x18(shares).mul(conversionPrice).intoUint256();
     }
 
@@ -178,14 +181,14 @@ contract Solaxy is ERC20ABC, ISolaxy {
      * @dev See {IERC4626-maxWithdraw}.
      */
     function maxWithdraw(address owner) external view returns (uint256 maxAssets) {
-        (, maxAssets,) = computeRedeem(balanceOf(owner), totalSupply());
+        (, maxAssets,) = computeRedeem(solaxy.balanceOf(owner), solaxy.totalSupply());
     }
 
     /**
      * @dev See {IERC4626-maxRedeem}.
      */
     function maxRedeem(address owner) external view returns (uint256 maxShares) {
-        return balanceOf(owner);
+        return solaxy.balanceOf(owner);
     }
 
     /**
@@ -292,7 +295,7 @@ contract Solaxy is ERC20ABC, ISolaxy {
             revert TransferError();
         }
         emit Deposit(msg.sender, receiver, assets, shares);
-        _mint(receiver, shares);
+        solaxy.mint(receiver, shares);
     }
 
     /**
@@ -303,13 +306,10 @@ contract Solaxy is ERC20ABC, ISolaxy {
         if (assets == 0) revert CannotBeZero();
         if (shares == 0) revert CannotBeZero();
         if (totalAssets() < assets) revert Undersupply();
-        if (totalSupply() < shares) revert Undersupply();
-        if (msg.sender != owner) {
-            _spendAllowance(owner, msg.sender, shares + fee);
-        }
-        _burn(owner, shares);
+        if (solaxy.totalSupply() < shares) revert Undersupply();
 
-        if (!transfer(FEE_ACCOUNT, fee)) revert TransferError();
+        solaxy.burn(owner, shares);
+        if (!solaxy.transfer(FEE_ACCOUNT, fee)) revert TransferError();
         if (!SDAI.transfer(receiver, assets)) revert TransferError();
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }

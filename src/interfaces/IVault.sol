@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {IERC4626} from "@openzeppelin/contracts@5.0.2/interfaces/IERC4626.sol";
-import {UD60x18} from "@prb/math@4.0.2/src/UD60x18.sol";
+import {IERC4626} from "./IERC4626.sol";
 
-error Undersupply();
-error CannotBeZero();
-error SlippageError();
-error TransferError();
-error RequiresM3ter();
+interface IVault is IERC4626 {
+    error Undersupply();
+    error CannotBeZero();
+    error SlippageError();
+    error TransferError();
+    error RequiresM3ter();
 
-interface ISolaxy is IERC4626 {
     function safeDeposit(uint256 assets, address receiver, uint256 minSharesOut) external returns (uint256 shares);
 
     function safeWithdraw(uint256 assets, address receiver, address owner, uint256 maxSharesIn)
@@ -23,5 +22,5 @@ interface ISolaxy is IERC4626 {
         external
         returns (uint256 assets);
 
-    function currentPrice() external returns (UD60x18);
+    function currentPrice() external returns (uint256);
 }

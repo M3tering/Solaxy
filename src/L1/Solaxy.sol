@@ -12,7 +12,7 @@ contract Solaxy is ERC20, ERC20Burnable, ERC20Permit, ERC20FlashMint {
 
     error Unauthorized();
 
-    constructor(address _vault) ERC20("Solaxy", "SOLX") ERC20Permit("Solaxy") {
+    constructor(address _vault) ERC20("Solaxy", "SLX") ERC20Permit("Solaxy") {
         vault = _vault;
     }
 

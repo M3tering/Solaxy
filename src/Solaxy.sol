@@ -1,41 +1,44 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "./Solaxy.sol";
-import "../interfaces/IVault.sol";
-import {UD60x18, ud60x18} from "@prb/math@4.0.2/src/UD60x18.sol";
-import {IERC20} from "@openzeppelin/contracts@5.0.2/interfaces/IERC20.sol";
-import {IERC721} from "@openzeppelin/contracts@5.0.2/interfaces/IERC721.sol";
+import "./interfaces/ISolaxy.sol";
+import "./interfaces/IERC6551Account.sol";
+import {UD60x18, ud60x18} from "@prb/math@4.1.0/src/UD60x18.sol";
+import {ERC20} from "@openzeppelin/contracts@5.1.0/token/ERC20/ERC20.sol";
+import {ERC20Permit} from "@openzeppelin/contracts@5.1.0/token/ERC20/extensions/ERC20Permit.sol";
 
 /**
- * @title SolaxyVault
- * @notice Token contract implementing a linear sDAI-backed bonding curve where the solpe is 25 basis points (0.0025).
- * @dev Adheres to the ERC-4626 tokenized vault interface for bonding curve operations.
+ * @title Solaxy
+ * @notice Token contract implementing a linear sDAI-backed bonding curve where the slope is 25 basis points (0.0025).
+ * @dev Adheres to ERC-20 token standard and uses the ERC-4626 tokenized vault interface for bonding curve operations.
  */
-contract SolaxyVault is IVault {
-    address public constant FEE_ACCOUNT = 0xE47b1bcDb3Bed18e5a8dA5aa6E7c7a7F4b5Bd50a; // ToDo: sett addresses
-    IERC20 public constant SDAI = IERC20(0xaf204776c7245bF4147c2612BF6e5972Ee483701); // ToDo: sett addresses
-    IERC721 public constant M3TER = IERC721(0x39fb420Bd583cCC8Afd1A1eAce2907fe300ABD02); // ToDo: sett addresses
+contract Solaxy is ISolaxy, ERC20, ERC20Permit {
+    ERC20 public constant USD3 = ERC20(0x0d86883FAf4FfD7aEb116390af37746F45b6f378);
+    address public constant FEE_ACCOUNT = 0xE47b1bcDb3Bed18e5a8dA5aa6E7c7a7F4b5Bd50a;
+    address public constant M3TER = 0x39fb420Bd583cCC8Afd1A1eAce2907fe300ABD02;
     UD60x18 public constant HALF_SLOPE = UD60x18.wrap(0.00125e18);
     UD60x18 public constant SLOPE = UD60x18.wrap(0.0025e18);
-    Solaxy public immutable solaxy;
+
+    modifier onlyM3terAccount(address account) {
+        (uint256 chainId, address tokenContract, uint256 tokenId) = IERC6551Account(account).token();
+        if (tokenContract != M3TER || chainId != block.chainid) revert RequiresM3ter();
+        _;
+    }
 
     /**
      * @dev Constructs the Solaxy contract, checks the sDAI token address and the fee account address.
      */
-    constructor() {
+    constructor() ERC20("Solaxy", "SLX") ERC20Permit("Solaxy") {
         if (address(M3TER) == address(0)) revert CannotBeZero();
-        if (address(SDAI) == address(0)) revert CannotBeZero();
+        if (address(USD3) == address(0)) revert CannotBeZero();
         if (FEE_ACCOUNT == address(0)) revert CannotBeZero();
-        solaxy = new Solaxy(address(this)); // Todo: precompute address and create2
     }
 
     /**
      * @dev See {IERC4626-deposit}.
      */
-    function deposit(uint256 assets, address receiver) external returns (uint256 shares) {
-        if (M3TER.balanceOf(receiver) < 1) revert RequiresM3ter();
-        shares = computeDeposit(assets, solaxy.totalSupply());
+    function deposit(uint256 assets, address receiver) external onlyM3terAccount(receiver) returns (uint256 shares) {
+        shares = computeDeposit(assets, totalSupply());
         _deposit(receiver, assets, shares);
     }
 
@@ -44,16 +47,15 @@ contract SolaxyVault is IVault {
      */
     function withdraw(uint256 assets, address receiver, address owner) external returns (uint256 shares) {
         uint256 fee;
-        (shares, fee) = computeWithdraw(assets, solaxy.totalSupply());
+        (shares, fee) = computeWithdraw(assets, totalSupply());
         _withdraw(receiver, owner, assets, shares, fee);
     }
 
     /**
      * @dev See {IERC4626-mint}.
      */
-    function mint(uint256 shares, address receiver) external returns (uint256 assets) {
-        if (M3TER.balanceOf(receiver) < 1) revert RequiresM3ter();
-        assets = computeMint(shares, solaxy.totalSupply());
+    function mint(uint256 shares, address receiver) external onlyM3terAccount(receiver) returns (uint256 assets) {
+        assets = computeMint(shares, totalSupply());
         _deposit(receiver, assets, shares);
     }
 
@@ -62,23 +64,26 @@ contract SolaxyVault is IVault {
      */
     function redeem(uint256 shares, address receiver, address owner) external returns (uint256 assets) {
         uint256 fee;
-        (shares, assets, fee) = computeRedeem(shares, solaxy.totalSupply());
+        (shares, assets, fee) = computeRedeem(shares, totalSupply());
         _withdraw(receiver, owner, assets, shares, fee);
     }
 
     /**
-     * @dev Implements {IERC4626-deposit} and protects againts slippage by specifying a minimum number of shares to receive.
+     * @dev Implements {IERC4626-deposit} and protects against slippage by specifying a minimum number of shares to receive.
      * @param minSharesOut The minimum number of shares the sender expects to receive.
      */
-    function safeDeposit(uint256 assets, address receiver, uint256 minSharesOut) external returns (uint256 shares) {
-        if (M3TER.balanceOf(receiver) < 1) revert RequiresM3ter();
-        shares = computeDeposit(assets, solaxy.totalSupply());
+    function safeDeposit(uint256 assets, address receiver, uint256 minSharesOut)
+        external
+        onlyM3terAccount(receiver)
+        returns (uint256 shares)
+    {
+        shares = computeDeposit(assets, totalSupply());
         if (shares < minSharesOut) revert SlippageError();
         _deposit(receiver, assets, shares);
     }
 
     /**
-     * @dev Implements {IERC4626-withdraw} and protects againts slippage by specifying a maximum number of shares to burn.
+     * @dev Implements {IERC4626-withdraw} and protects against slippage by specifying a maximum number of shares to burn.
      * @param maxSharesIn The maximum number of shares the sender is willing to burn.
      */
     function safeWithdraw(uint256 assets, address receiver, address owner, uint256 maxSharesIn)
@@ -86,24 +91,27 @@ contract SolaxyVault is IVault {
         returns (uint256 shares)
     {
         uint256 fee;
-        (shares, fee) = computeWithdraw(assets, solaxy.totalSupply());
+        (shares, fee) = computeWithdraw(assets, totalSupply());
         if (shares > maxSharesIn) revert SlippageError();
         _withdraw(receiver, owner, assets, shares, fee);
     }
 
     /**
-     * @dev Implements {IERC4626-deposit} and protects againts slippage by specifying a maximum amount of assets to deposit.
+     * @dev Implements {IERC4626-deposit} and protects against slippage by specifying a maximum amount of assets to deposit.
      * @param maxAssetsIn The maximum amount of assets the sender is willing to deposit.
      */
-    function safeMint(uint256 shares, address receiver, uint256 maxAssetsIn) external returns (uint256 assets) {
-        if (M3TER.balanceOf(receiver) < 1) revert RequiresM3ter();
-        assets = computeMint(shares, solaxy.totalSupply());
+    function safeMint(uint256 shares, address receiver, uint256 maxAssetsIn)
+        external
+        onlyM3terAccount(receiver)
+        returns (uint256 assets)
+    {
+        assets = computeMint(shares, totalSupply());
         if (assets > maxAssetsIn) revert SlippageError();
         _deposit(receiver, assets, shares);
     }
 
     /**
-     * @dev Implements {IERC4626-redeem} and protects againts slippage by specifying a minimum amount of assets to receive.
+     * @dev Implements {IERC4626-redeem} and protects against slippage by specifying a minimum amount of assets to receive.
      * @param minAssetsOut The minimum amount of assets the sender expects to receive.
      */
     function safeRedeem(uint256 shares, address receiver, address owner, uint256 minAssetsOut)
@@ -111,7 +119,7 @@ contract SolaxyVault is IVault {
         returns (uint256 assets)
     {
         uint256 fee;
-        (shares, assets, fee) = computeRedeem(shares, solaxy.totalSupply());
+        (shares, assets, fee) = computeRedeem(shares, totalSupply());
         if (assets < minAssetsOut) revert SlippageError();
         _withdraw(receiver, owner, assets, shares, fee);
     }
@@ -120,7 +128,7 @@ contract SolaxyVault is IVault {
      * @dev See {IERC4626-previewDeposit}.
      */
     function previewDeposit(uint256 assets) external view returns (uint256 shares) {
-        return computeDeposit(assets, solaxy.totalSupply());
+        return computeDeposit(assets, totalSupply());
     }
 
     /**
@@ -129,7 +137,7 @@ contract SolaxyVault is IVault {
     function previewWithdraw(uint256 assets) external view returns (uint256 shares) {
         uint256 fee;
         if (totalAssets() < assets) revert Undersupply();
-        (shares, fee) = computeWithdraw(assets, solaxy.totalSupply());
+        (shares, fee) = computeWithdraw(assets, totalSupply());
         return shares + fee;
     }
 
@@ -137,15 +145,15 @@ contract SolaxyVault is IVault {
      * @dev See {IERC4626-previewMint}.
      */
     function previewMint(uint256 shares) external view returns (uint256 assets) {
-        return computeMint(shares, solaxy.totalSupply());
+        return computeMint(shares, totalSupply());
     }
 
     /**
      * @dev See {IERC4626-previewRedeem}.
      */
     function previewRedeem(uint256 shares) external view returns (uint256 assets) {
-        if (solaxy.totalSupply() < shares) revert Undersupply();
-        (, assets,) = computeRedeem(shares, solaxy.totalSupply());
+        if (totalSupply() < shares) revert Undersupply();
+        (, assets,) = computeRedeem(shares, totalSupply());
     }
 
     /**
@@ -156,15 +164,15 @@ contract SolaxyVault is IVault {
      * @return price The current price along the bonding curve.
      */
     function currentPrice() external view returns (uint256) {
-        return ud60x18(solaxy.totalSupply()).mul(SLOPE).intoUint256();
+        return ud60x18(totalSupply()).mul(SLOPE).intoUint256();
     }
 
     /**
-     * @dev See {IERC4626-convertToShares}.
+     * @dev See {IERC4626-convertToShares}.1
      */
     function convertToShares(uint256 assets) external view returns (uint256 shares) {
         if (totalAssets() < assets) revert Undersupply();
-        UD60x18 conversionPrice = ud60x18(solaxy.totalSupply()).mul(HALF_SLOPE);
+        UD60x18 conversionPrice = ud60x18(totalSupply()).mul(HALF_SLOPE);
         shares = ud60x18(assets).div(conversionPrice).intoUint256();
     }
 
@@ -172,8 +180,8 @@ contract SolaxyVault is IVault {
      * @dev See {IERC4626-convertToAssets}.
      */
     function convertToAssets(uint256 shares) external view returns (uint256 assets) {
-        if (solaxy.totalSupply() < shares) revert Undersupply();
-        UD60x18 conversionPrice = ud60x18(solaxy.totalSupply()).mul(HALF_SLOPE);
+        if (totalSupply() < shares) revert Undersupply();
+        UD60x18 conversionPrice = ud60x18(totalSupply()).mul(HALF_SLOPE);
         assets = ud60x18(shares).mul(conversionPrice).intoUint256();
     }
 
@@ -181,14 +189,14 @@ contract SolaxyVault is IVault {
      * @dev See {IERC4626-maxWithdraw}.
      */
     function maxWithdraw(address owner) external view returns (uint256 maxAssets) {
-        (, maxAssets,) = computeRedeem(solaxy.balanceOf(owner), solaxy.totalSupply());
+        (, maxAssets,) = computeRedeem(balanceOf(owner), totalSupply());
     }
 
     /**
      * @dev See {IERC4626-maxRedeem}.
      */
     function maxRedeem(address owner) external view returns (uint256 maxShares) {
-        return solaxy.balanceOf(owner);
+        return balanceOf(owner);
     }
 
     /**
@@ -209,14 +217,14 @@ contract SolaxyVault is IVault {
      * @dev See {IERC4626-asset}.
      */
     function asset() external pure returns (address assetTokenAddress) {
-        return address(SDAI);
+        return address(USD3);
     }
 
     /**
      * @dev See {IERC4626-totalAssets}.
      */
     function totalAssets() public view returns (uint256 totalManagedAssets) {
-        totalManagedAssets = SDAI.balanceOf(address(this));
+        totalManagedAssets = USD3.balanceOf(address(this));
     }
 
     /**
@@ -291,11 +299,9 @@ contract SolaxyVault is IVault {
     function _deposit(address receiver, uint256 assets, uint256 shares) internal {
         if (assets == 0) revert CannotBeZero();
         if (shares == 0) revert CannotBeZero();
-        if (!SDAI.transferFrom(msg.sender, address(this), assets)) {
-            revert TransferError();
-        }
+        if (!USD3.transferFrom(msg.sender, address(this), assets)) revert TransferError();
+        _mint(receiver, shares);
         emit Deposit(msg.sender, receiver, assets, shares);
-        solaxy.mint(receiver, shares);
     }
 
     /**
@@ -306,28 +312,33 @@ contract SolaxyVault is IVault {
         if (assets == 0) revert CannotBeZero();
         if (shares == 0) revert CannotBeZero();
         if (totalAssets() < assets) revert Undersupply();
-        if (solaxy.totalSupply() < shares) revert Undersupply();
+        if (totalSupply() < shares) revert Undersupply();
+        if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares + fee);
+        _burn(owner, shares);
 
-        solaxy.burn(owner, shares);
-        if (!solaxy.transfer(FEE_ACCOUNT, fee)) revert TransferError();
-        if (!SDAI.transfer(receiver, assets)) revert TransferError();
+        if (!transfer(FEE_ACCOUNT, fee)) revert TransferError();
+        if (!USD3.transfer(receiver, assets)) revert TransferError();
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
 
     /**
      * @notice Computes assets as the area under a linear curve with a simplified form of the area of a trapezium,
      * f(x) = mx + c, and Area = 1/2 * (a + b) * h
-     * where `a` and `b` can be both f(juniorSupply) or f(seniorSupply) depending if used in minting or redeeming.
-     * Calculates area as (seniorSupply^2 - juniorSupply^2) * halfSlope, where halfSlope = (slope / 2)
+     * where `a` and `b` can be both f(lesserSupplyAmount) or f(largerSupplyAmount) depending if used in minting or redeeming.
+     * Calculates area as (largerSupplyAmount^2 - lesserSupplyAmount^2) * halfSlope, where halfSlope = (slope / 2)
      *
-     * @param juniorSupply The smaller supply in the operation (the initial supply during mint,
+     * @param lesserSupplyAmount The smaller supply in the operation (the initial supply during mint,
      * or the final supply during a redeem operation).
-     * @param seniorSupply The larger supply in the operation (the final supply during mint,
+     * @param largerSupplyAmount The larger supply in the operation (the final supply during mint,
      * or the initial supply during a redeem operation).
      * @return assets The computed assets as an instance of UD60x18 (a fixed-point number).
      */
-    function _convertToAssets(UD60x18 juniorSupply, UD60x18 seniorSupply) internal pure returns (UD60x18 assets) {
-        UD60x18 sqrDiff = seniorSupply.powu(2).sub(juniorSupply.powu(2));
+    function _convertToAssets(UD60x18 lesserSupplyAmount, UD60x18 largerSupplyAmount)
+        internal
+        pure
+        returns (UD60x18 assets)
+    {
+        UD60x18 sqrDiff = largerSupplyAmount.powu(2).sub(lesserSupplyAmount.powu(2));
         return sqrDiff.mul(HALF_SLOPE);
     }
 }

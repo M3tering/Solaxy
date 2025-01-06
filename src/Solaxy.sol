@@ -18,10 +18,10 @@ import {UD60x18, ud60x18} from "@prb/math@4.1.0/src/UD60x18.sol";
  * @dev Adheres to ERC-20 token standard and uses the ERC-4626 tokenized vault interface for bonding curve operations.
  */
 contract SuperSolaxy is ISolaxy, IOptimismMintableERC20, IERC7802, ERC20, ERC20Permit, ERC20FlashMint {
-    ERC20 public constant REFI_USD = ERC20(0x0d86883FAf4FfD7aEb116390af37746F45b6f378); // ToDo: use refiUSD L1 contract address
     address public constant SUPERCHAIN_TOKEN_BRIDGE = 0x4200000000000000000000000000000000000028;
     address public constant L1_STANDARD_BRIDGE_PROXY = 0x99C9fc46f92E8a1c0deC1b1747d010903E884bE1;
     address public constant L2_STANDARD_BRIDGE = 0x4200000000000000000000000000000000000010;
+    address public constant REFI_USD = 0x0d86883FAf4FfD7aEb116390af37746F45b6f378; // ToDo: use refiUSD L1 contract address
     UD60x18 public constant HALF_SLOPE = UD60x18.wrap(0.0000125e18);
     UD60x18 public constant SLOPE = UD60x18.wrap(0.000025e18);
 
@@ -161,11 +161,11 @@ contract SuperSolaxy is ISolaxy, IOptimismMintableERC20, IERC7802, ERC20, ERC20P
      * @dev See {IERC4626-asset}.
      */
     function asset() external pure returns (address assetTokenAddress) {
-        return address(REFI_USD);
+        return REFI_USD;
     }
 
     function remoteToken() external pure returns (address) {
-        return address(REFI_USD);
+        return REFI_USD;
     }
 
     function bridge() external pure returns (address) {

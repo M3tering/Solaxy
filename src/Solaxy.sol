@@ -1,16 +1,17 @@
 // SPDX-License-Identifier: MIT
 // Compatible with OpenZeppelin Contracts ^5.0.0
+
 pragma solidity ^0.8.24;
 
-import {ISolaxyView} from "./interfaces/ISolaxy.sol";
-import {IERC7802, IERC165} from "./interfaces/IERC7802.sol";
-import {IOptimismMintableERC20} from "./interfaces/IOptimismMintableERC20.sol";
-
+import {UD60x18, ud60x18} from "@prb/math@4.1.0/src/UD60x18.sol";
 import {ERC20} from "@openzeppelin/contracts@5.1.0/token/ERC20/ERC20.sol";
 import {ERC20Permit} from "@openzeppelin/contracts@5.1.0/token/ERC20/extensions/ERC20Permit.sol";
 import {ERC20FlashMint} from "@openzeppelin/contracts@5.1.0/token/ERC20/extensions/ERC20FlashMint.sol";
 
-import {UD60x18, ud60x18} from "@prb/math@4.1.0/src/UD60x18.sol";
+import {IOptimismMintableERC20} from "./interfaces/IOptimismMintableERC20.sol";
+import {IERC7802, IERC165} from "./interfaces/IERC7802.sol";
+import {ISolaxyView} from "./interfaces/ISolaxy.sol";
+
 
 /**
  * @title Super Solaxy
@@ -95,6 +96,11 @@ contract SuperSolaxy is ISolaxyView, IOptimismMintableERC20, IERC7802, ERC20Perm
         _burn(owner, shares);
     }
 
+    /**
+     * @notice ERC165 interface check function.
+     * @param _interfaceId Interface ID to check.
+     * @return Whether or not the interface is supported by this contract.
+     */
     function supportsInterface(bytes4 _interfaceId) external view virtual returns (bool) {
         return _interfaceId == type(IERC165).interfaceId || _interfaceId == type(ERC20).interfaceId
             || _interfaceId == type(IERC7802).interfaceId || _interfaceId == type(ISolaxyView).interfaceId

@@ -14,8 +14,9 @@ import {UD60x18, ud60x18} from "@prb/math@4.1.0/src/UD60x18.sol";
 
 /**
  * @title Super Solaxy
- * @notice Token contract implementing a linear sDAI-backed bonding curve where the slope is 0.000025.
- * @dev Adheres to ERC-20 token standard and uses the ERC-4626 tokenized vault interface for bonding curve operations.
+ * @notice Token contract implementing a linear asset-backed bonding curve where the slope is 0.000025.
+ * @dev Adheres to ERC-20 token standard and only supports ERC-4626 tokenized vault interface
+ * for viewing the bonding curve operations. (view-only)
  */
 contract SuperSolaxy is ISolaxy, IOptimismMintableERC20, IERC7802, ERC20, ERC20Permit, ERC20FlashMint {
     address public constant SUPERCHAIN_TOKEN_BRIDGE = 0x4200000000000000000000000000000000000028;
@@ -30,63 +31,67 @@ contract SuperSolaxy is ISolaxy, IOptimismMintableERC20, IERC7802, ERC20, ERC20P
     }
 
     /**
-     * @notice Allows the StandardBridge on this network to mint tokens.
-     * @param to Address to mint tokens to.
-     * @param txAssets Amount of tokens to deposited to superchain bridge.
+     * @notice Allows the only the StandardBridge on this L2 to mint shares.
+     * @dev Mints shares to receiver who deposited exact underlying assets to the superchain bridge.
+     * Functionally equivalent to "ERC4626-deposit" where the superchain bridge L1 contract is the asset vault.
+     * @param receiver Address to mint shares to.
+     * @param assets Amount deposited to superchain bridge L1 contract.
      */
-    function mint(address to, uint256 txAssets) external {
+    function mint(address receiver, uint256 assets) external {
         if (msg.sender != L2_STANDARD_BRIDGE) revert Unauthorized();
-        if (txAssets == 0) revert CannotBeZero();
+        if (assets == 0) revert CannotBeZero();
 
-        uint256 shares = _computeShares(ud60x18(totalAssets()), ud60x18(txAssets)).intoUint256();
+        uint256 shares = _computeShares(ud60x18(totalAssets()), ud60x18(assets)).intoUint256();
         if (shares == 0) revert CannotBeZero();
 
-        emit Deposit(msg.sender, to, txAssets, shares);
-        _mint(to, shares);
+        emit Deposit(msg.sender, receiver, assets, shares);
+        _mint(receiver, shares);
     }
 
     /**
-     * @notice Allows the StandardBridge on this network to burn tokens.
-     * @param from Address to mint tokens to.
-     * @param txAssets Amount of tokens to be withdrawn to superchain bridge.
+     * @notice Allows the only StandardBridge on this L2 to burn shares.
+     * @dev Burns shares from owner for withdrawing exact underlying assets from the superchain bridge.
+     * Functionally equivalent to "ERC4626-withdraw" where the superchain bridge L1 contract is the asset vault.
+     * @param owner Address to burn shares from.
+     * @param assets Amount to be withdrawn from superchain bridge L1 contract.
      */
-    function burn(address from, uint256 txAssets) external {
+    function burn(address owner, uint256 assets) external {
         if (msg.sender != L2_STANDARD_BRIDGE) revert Unauthorized();
-        if (txAssets == 0) revert CannotBeZero();
+        if (assets == 0) revert CannotBeZero();
 
         uint256 assetTotal = totalAssets();
-        if (txAssets > assetTotal) revert Undersupply();
+        if (assets > assetTotal) revert Undersupply();
 
-        uint256 shares = _computeShares(ud60x18(assetTotal), ud60x18(txAssets)).intoUint256();
+        uint256 shares = _computeShares(ud60x18(assetTotal), ud60x18(assets)).intoUint256();
         if (shares > totalSupply()) revert Undersupply();
         if (shares == 0) revert CannotBeZero();
 
-        emit Withdraw(msg.sender, from, from, txAssets, shares);
-        _spendAllowance(from, msg.sender, shares);
-        _burn(from, shares);
+        emit Withdraw(msg.sender, owner, owner, assets, shares);
+        _spendAllowance(owner, msg.sender, shares);
+        _burn(owner, shares);
     }
 
     /**
-     * @notice Allows the SuperchainTokenBridge to mint tokens.
-     * @param to Address to mint tokens to.
-     * @param tokenAmount Amount of tokens to mint.
+     * @notice Allows the SuperchainTokenBridge to mint shares.
+     * @param receiver Address to mint shares to.
+     * @param shares Amount of shares to mint.
      */
-    function crosschainMint(address to, uint256 tokenAmount) external {
+    function crosschainMint(address receiver, uint256 shares) external {
         if (msg.sender != SUPERCHAIN_TOKEN_BRIDGE) revert Unauthorized();
-        emit CrosschainMint(to, tokenAmount, msg.sender);
-        _mint(to, tokenAmount);
+        emit CrosschainMint(receiver, shares, msg.sender);
+        _mint(receiver, shares);
     }
 
     /**
      * @notice Allows the SuperchainTokenBridge to burn tokens.
-     * @param from Address to burn tokens from.
-     * @param tokenAmount Amount of tokens to burn.
+     * @param owner Address to burn shares from.
+     * @param shares Amount of shares to burn.
      */
-    function crosschainBurn(address from, uint256 tokenAmount) external {
+    function crosschainBurn(address owner, uint256 shares) external {
         if (msg.sender != SUPERCHAIN_TOKEN_BRIDGE) revert Unauthorized();
-        emit CrosschainBurn(from, tokenAmount, msg.sender);
-        _spendAllowance(from, msg.sender, tokenAmount);
-        _burn(from, tokenAmount);
+        emit CrosschainBurn(owner, shares, msg.sender);
+        _spendAllowance(owner, msg.sender, shares);
+        _burn(owner, shares);
     }
 
     function supportsInterface(bytes4 _interfaceId) external view virtual returns (bool) {
@@ -164,10 +169,18 @@ contract SuperSolaxy is ISolaxy, IOptimismMintableERC20, IERC7802, ERC20, ERC20P
         return REFI_USD;
     }
 
+    /**
+     * @custom:legacy
+     * @notice Legacy getter for REMOTE_TOKEN.
+     */
     function remoteToken() external pure returns (address) {
         return REFI_USD;
     }
 
+    /**
+     * @custom:legacy
+     * @notice Legacy getter for BRIDGE.
+     */
     function bridge() external pure returns (address) {
         return L2_STANDARD_BRIDGE;
     }
@@ -181,6 +194,7 @@ contract SuperSolaxy is ISolaxy, IOptimismMintableERC20, IERC7802, ERC20, ERC20P
 
     /**
      * @dev See {IERC4626-totalAssets}.
+     * The function is a read of the amount of underlying asset in the superchain bridge L1 contract
      */
     function totalAssets() public view returns (uint256) {
         // ToDo: Implement L1SLOAD or L1CALL or REMOTESTATICCALL
@@ -196,7 +210,8 @@ contract SuperSolaxy is ISolaxy, IOptimismMintableERC20, IERC7802, ERC20, ERC20P
     }
 
     /**
-     * x= sqrt(HALF_SLOPE * totalAssets())
+     * @dev Computes and returns the total amount shares in existence based on the amount of
+     * underlying asset in the superchain bridge L1 contract using the formula sqrt(HALF_SLOPE * totalAssets())
      */
     function totalShares() public view returns (uint256) {
         return ud60x18(totalAssets()).div(HALF_SLOPE).sqrt().intoUint256();
@@ -204,7 +219,7 @@ contract SuperSolaxy is ISolaxy, IOptimismMintableERC20, IERC7802, ERC20, ERC20P
 
     /**
      * @notice Computes the current price of a share, as y = √2Am
-     * which is derived from the combination of; y = mx, and A = xy/2
+     * which is derived from a combination of the formulae for liner slope & area of a triangle; y = mx, and A = xy/2 respectively
      * where the given values `A` is totalAssets & `m` is the slope of 0.000025
      * @return price The current price along the bonding curve.
      */
@@ -213,7 +228,9 @@ contract SuperSolaxy is ISolaxy, IOptimismMintableERC20, IERC7802, ERC20, ERC20P
     }
 
     /**
-     * Δx = sqrt(assetTotal/HALF_SLOPE) - sqrt((assetTotal - assetDelta)/HALF_SLOPE)
+     * @dev Given the area under the bonding curve and delta to said area, computes the corresponding delta in x
+     * using the formula sqrt(assetTotal/HALF_SLOPE) - sqrt((assetTotal - assetDelta)/HALF_SLOPE); Δx = √(A/m') - √((A-z)/m')
+     * which is derived from a combination of the formulae for liner slope & area of a triangle; y = mx, and A = xy/2 respectively
      * @param assetTotal The current total asset (area under the curve)
      * @param assetDelta The asset amount from user deposit or withdraw
      * @return shares The computed delta in x (shares to mint or burn) given the total assets before and after the transaction

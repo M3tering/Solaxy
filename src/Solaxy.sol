@@ -25,8 +25,7 @@ contract SuperSolaxy is ISolaxyView, IOptimismMintableERC20, IERC7802, ERC20Perm
     address public constant L1_STANDARD_BRIDGE_PROXY = 0x99C9fc46f92E8a1c0deC1b1747d010903E884bE1;
     address public constant L2_STANDARD_BRIDGE = 0x4200000000000000000000000000000000000010;
     address public constant REFI_USD = 0x0d86883FAf4FfD7aEb116390af37746F45b6f378; // ToDo: use refiUSD L1 contract address
-    UD60x18 public constant HALF_SLOPE = UD60x18.wrap(0.0000125e18);
-    UD60x18 public constant SLOPE = UD60x18.wrap(0.000025e18);
+    UD60x18 public constant SEMI_SLOPE = UD60x18.wrap(0.0000125e18);
 
     constructor() ERC20("Solaxy", "SLX") ERC20Permit("Solaxy") {
         if (address(REFI_USD) == address(0)) revert CannotBeZero();
@@ -132,7 +131,7 @@ contract SuperSolaxy is ISolaxyView, IOptimismMintableERC20, IERC7802, ERC20Perm
      * @notice See {IERC4626-previewMint}.
      */
     function previewMint(uint256 shares) external view returns (uint256 assets) {
-        return ud60x18(totalShares() + shares).powu(2).mul(HALF_SLOPE).sub(ud60x18(totalAssets())).intoUint256();
+        return ud60x18(totalShares() + shares).powu(2).mul(SEMI_SLOPE).sub(ud60x18(totalAssets())).intoUint256();
     }
 
     /**
@@ -197,7 +196,7 @@ contract SuperSolaxy is ISolaxyView, IOptimismMintableERC20, IERC7802, ERC20Perm
      * @notice See {IERC4626-previewRedeem}.
      */
     function previewRedeem(uint256 shares) public view returns (uint256 assets) {
-        return ud60x18(totalAssets()).sub(ud60x18(totalShares() - shares).powu(2).mul(HALF_SLOPE)).intoUint256();
+        return ud60x18(totalAssets()).sub(ud60x18(totalShares() - shares).powu(2).mul(SEMI_SLOPE)).intoUint256();
     }
 
     /**
@@ -220,10 +219,10 @@ contract SuperSolaxy is ISolaxyView, IOptimismMintableERC20, IERC7802, ERC20Perm
     /**
      * @notice Returns the total amount shares in existence
      * @dev Computed based on the amount of underlying asset in the superchain bridge L1 contract
-     * using the formula sqrt(HALF_SLOPE * totalAssets())
+     * using the formula sqrt(SEMI_SLOPE * totalAssets())
      */
     function totalShares() public view returns (uint256) {
-        return ud60x18(totalAssets()).div(HALF_SLOPE).sqrt().intoUint256();
+        return ud60x18(totalAssets()).div(SEMI_SLOPE).sqrt().intoUint256();
     }
 
     /**
@@ -233,18 +232,18 @@ contract SuperSolaxy is ISolaxyView, IOptimismMintableERC20, IERC7802, ERC20Perm
      * @return price The current price along the bonding curve.
      */
     function currentPrice() public view returns (uint256) {
-        return ud60x18(totalAssets() * 2).mul(SLOPE).sqrt().intoUint256();
+        return ud60x18(totalAssets() * 4).mul(SEMI_SLOPE).sqrt().intoUint256();
     }
 
     /**
      * @dev Given the area under the bonding curve and delta to said area, computes the corresponding delta in x
-     * using the formula sqrt(assetTotal/HALF_SLOPE) - sqrt((assetTotal - assetDelta)/HALF_SLOPE); Δx = √(A/m') - √((A-z)/m')
+     * using the formula sqrt(assetTotal/SEMI_SLOPE) - sqrt((assetTotal - assetDelta)/SEMI_SLOPE); Δx = √(A/m') - √((A-z)/m')
      * which is derived from a combination of the formulae for liner slope & area of a triangle; y = mx, and A = xy/2 respectively
      * @param assetTotal The current total asset (area under the curve)
      * @param assetDelta The asset amount from user deposit or withdraw
      * @return shares The computed delta in x (shares to mint or burn) given the total assets before and after the transaction
      */
     function _computeShares(UD60x18 assetTotal, UD60x18 assetDelta) private pure returns (UD60x18 shares) {
-        return assetTotal.div(HALF_SLOPE).sqrt().sub(assetTotal.sub(assetDelta).div(HALF_SLOPE).sqrt());
+        return assetTotal.div(SEMI_SLOPE).sqrt().sub(assetTotal.sub(assetDelta).div(SEMI_SLOPE).sqrt());
     }
 }

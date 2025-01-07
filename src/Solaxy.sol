@@ -2,7 +2,7 @@
 // Compatible with OpenZeppelin Contracts ^5.0.0
 pragma solidity ^0.8.24;
 
-import {ISolaxy} from "./interfaces/ISolaxy.sol";
+import {ISolaxyView} from "./interfaces/ISolaxy.sol";
 import {IERC7802, IERC165} from "./interfaces/IERC7802.sol";
 import {IOptimismMintableERC20} from "./interfaces/IOptimismMintableERC20.sol";
 
@@ -14,11 +14,12 @@ import {UD60x18, ud60x18} from "@prb/math@4.1.0/src/UD60x18.sol";
 
 /**
  * @title Super Solaxy
+ * @author ichristwin
  * @notice Token contract implementing a linear asset-backed bonding curve where the slope is 0.000025.
  * @dev Adheres to ERC-20 token standard and only supports ERC-4626 tokenized vault interface
  * for viewing the bonding curve operations. (view-only)
  */
-contract SuperSolaxy is ISolaxy, IOptimismMintableERC20, IERC7802, ERC20, ERC20Permit, ERC20FlashMint {
+contract SuperSolaxy is ISolaxyView, IOptimismMintableERC20, IERC7802, ERC20Permit, ERC20FlashMint {
     address public constant SUPERCHAIN_TOKEN_BRIDGE = 0x4200000000000000000000000000000000000028;
     address public constant L1_STANDARD_BRIDGE_PROXY = 0x99C9fc46f92E8a1c0deC1b1747d010903E884bE1;
     address public constant L2_STANDARD_BRIDGE = 0x4200000000000000000000000000000000000010;
@@ -95,75 +96,76 @@ contract SuperSolaxy is ISolaxy, IOptimismMintableERC20, IERC7802, ERC20, ERC20P
     }
 
     function supportsInterface(bytes4 _interfaceId) external view virtual returns (bool) {
-        return _interfaceId == type(ERC20).interfaceId || _interfaceId == type(IOptimismMintableERC20).interfaceId
-            || _interfaceId == type(IERC7802).interfaceId || _interfaceId == type(IERC165).interfaceId;
+        return _interfaceId == type(IERC165).interfaceId || _interfaceId == type(ERC20).interfaceId
+            || _interfaceId == type(IERC7802).interfaceId || _interfaceId == type(ISolaxyView).interfaceId
+            || _interfaceId == type(IOptimismMintableERC20).interfaceId;
     }
 
     /**
-     * @dev See {IERC4626-convertToShares}.
+     * @notice See {IERC4626-convertToShares}.
      */
     function convertToShares(uint256 assets) external view returns (uint256 shares) {
         shares = ud60x18(assets).div(ud60x18(currentPrice())).intoUint256();
     }
 
     /**
-     * @dev See {IERC4626-convertToAssets}.
+     * @notice See {IERC4626-convertToAssets}.
      */
     function convertToAssets(uint256 shares) external view returns (uint256 assets) {
         assets = ud60x18(shares).mul(ud60x18(currentPrice())).intoUint256();
     }
 
     /**
-     * @dev See {IERC4626-previewDeposit}.
+     * @notice See {IERC4626-previewDeposit}.
      */
     function previewDeposit(uint256 assets) external view returns (uint256 shares) {
         return _computeShares(ud60x18(totalAssets() + assets), ud60x18(assets)).intoUint256();
     }
 
     /**
-     * @dev See {IERC4626-previewMint}.
+     * @notice See {IERC4626-previewMint}.
      */
     function previewMint(uint256 shares) external view returns (uint256 assets) {
         return ud60x18(totalShares() + shares).powu(2).mul(HALF_SLOPE).sub(ud60x18(totalAssets())).intoUint256();
     }
 
     /**
-     * @dev See {IERC4626-maxWithdraw}.
+     * @notice See {IERC4626-maxWithdraw}.
      */
     function maxWithdraw(address owner) external view returns (uint256 maxAssets) {
         maxAssets = previewRedeem(balanceOf(owner));
     }
 
     /**
-     * @dev See {IERC4626-previewWithdraw}.
+     * @notice See {IERC4626-previewWithdraw}.
      */
     function previewWithdraw(uint256 assets) external view returns (uint256 shares) {
         return _computeShares(ud60x18(totalAssets()), ud60x18(assets)).intoUint256();
     }
 
     /**
-     * @dev See {IERC4626-maxRedeem}.
+     * @notice See {IERC4626-maxRedeem}.
      */
     function maxRedeem(address owner) external view returns (uint256 maxShares) {
         return balanceOf(owner);
     }
 
     /**
-     * @dev See {IERC4626-maxDeposit}.
+     * @notice See {IERC4626-maxDeposit}.
      */
     function maxDeposit(address) external pure returns (uint256 maxAssets) {
         return type(uint256).max;
     }
 
     /**
-     * @dev See {IERC4626-maxMint}.
+     * @notice See {IERC4626-maxMint}.
      */
     function maxMint(address) external pure returns (uint256 maxShares) {
         return type(uint256).max;
     }
 
     /**
-     * @dev See {IERC4626-asset}.
+     * @notice See {IERC4626-asset}.
      */
     function asset() external pure returns (address assetTokenAddress) {
         return REFI_USD;
@@ -186,15 +188,15 @@ contract SuperSolaxy is ISolaxy, IOptimismMintableERC20, IERC7802, ERC20, ERC20P
     }
 
     /**
-     * @dev See {IERC4626-previewRedeem}.
+     * @notice See {IERC4626-previewRedeem}.
      */
     function previewRedeem(uint256 shares) public view returns (uint256 assets) {
         return ud60x18(totalAssets()).sub(ud60x18(totalShares() - shares).powu(2).mul(HALF_SLOPE)).intoUint256();
     }
 
     /**
-     * @dev See {IERC4626-totalAssets}.
-     * The function is a read of the amount of underlying asset in the superchain bridge L1 contract
+     * @notice See {IERC4626-totalAssets}.
+     * @dev The function is a read of the amount of underlying asset in the superchain bridge L1 contract
      */
     function totalAssets() public view returns (uint256) {
         // ToDo: Implement L1SLOAD or L1CALL or REMOTESTATICCALL
@@ -210,17 +212,18 @@ contract SuperSolaxy is ISolaxy, IOptimismMintableERC20, IERC7802, ERC20, ERC20P
     }
 
     /**
-     * @dev Computes and returns the total amount shares in existence based on the amount of
-     * underlying asset in the superchain bridge L1 contract using the formula sqrt(HALF_SLOPE * totalAssets())
+     * @notice Returns the total amount shares in existence
+     * @dev Computed based on the amount of underlying asset in the superchain bridge L1 contract
+     * using the formula sqrt(HALF_SLOPE * totalAssets())
      */
     function totalShares() public view returns (uint256) {
         return ud60x18(totalAssets()).div(HALF_SLOPE).sqrt().intoUint256();
     }
 
     /**
-     * @notice Computes the current price of a share, as y = √2Am
-     * which is derived from a combination of the formulae for liner slope & area of a triangle; y = mx, and A = xy/2 respectively
-     * where the given values `A` is totalAssets & `m` is the slope of 0.000025
+     * @notice Returns the current price of a share
+     * @dev Computed as y = √2Am which is derived from a combination of the formulae for liner slope & area of a triangle
+     * y = mx, and A = xy/2 respectively where the given values `A` is totalAssets & `m` is the slope of 0.000025
      * @return price The current price along the bonding curve.
      */
     function currentPrice() public view returns (uint256) {

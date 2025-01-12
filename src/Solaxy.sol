@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MIT
 // Compatible with OpenZeppelin Contracts ^5.0.0
-
 pragma solidity ^0.8.24;
 
 import {UD60x18, ud60x18} from "@prb/math@4.1.0/src/UD60x18.sol";
@@ -15,10 +14,11 @@ import {ISolaxyView} from "./interfaces/ISolaxy.sol";
 
 /**
  * @title Super Solaxy
- * @author ichristwin
+ * @author ichristwin.eth
  * @notice Token contract implementing a linear asset-backed bonding curve where the slope is 0.000025.
  * @dev Adheres to ERC-20 token standard and only supports ERC-4626 tokenized vault interface
  * for viewing the bonding curve operations. (view-only)
+ * @custom:security-contact 25nzij1r3@mozmail.com
  */
 contract SuperSolaxy is ISolaxyView, IOptimismMintableERC20, IERC7802, ERC20Permit, ERC20FlashMint {
     address public constant SUPERCHAIN_TOKEN_BRIDGE = 0x4200000000000000000000000000000000000028;

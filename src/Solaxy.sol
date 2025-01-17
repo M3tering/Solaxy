@@ -1,23 +1,25 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "./interfaces/ISolaxy.sol";
-import "./interfaces/IERC6551Account.sol";
+import {ISolaxy} from "./interfaces/ISolaxy.sol";
+import {IERC6551Account} from "./interfaces/IERC6551Account.sol";
 import {UD60x18, ud60x18} from "@prb/math@4.1.0/src/UD60x18.sol";
 import {ERC20} from "@openzeppelin/contracts@5.1.0/token/ERC20/ERC20.sol";
 import {ERC20Permit} from "@openzeppelin/contracts@5.1.0/token/ERC20/extensions/ERC20Permit.sol";
+import {ERC20FlashMint} from "@openzeppelin/contracts@5.1.0/token/ERC20/extensions/ERC20FlashMint.sol";
 
 /**
  * @title Solaxy
- * @notice Token contract implementing a linear sDAI-backed bonding curve where the slope is 25 basis points (0.0025).
+ * @author ichristwin.eth
+ * @notice Token contract implementing a linear asset-backed bonding curve where the slope is 25 basis points (0.0025).
  * @dev Adheres to ERC-20 token standard and uses the ERC-4626 tokenized vault interface for bonding curve operations.
+ * @custom:security-contact 25nzij1r3@mozmail.com
  */
-contract Solaxy is ISolaxy, ERC20, ERC20Permit {
-    ERC20 public constant USD3 = ERC20(0x0d86883FAf4FfD7aEb116390af37746F45b6f378);
-    address public constant FEE_ACCOUNT = 0xE47b1bcDb3Bed18e5a8dA5aa6E7c7a7F4b5Bd50a;
-    address public constant M3TER = 0x39fb420Bd583cCC8Afd1A1eAce2907fe300ABD02;
-    UD60x18 public constant HALF_SLOPE = UD60x18.wrap(0.00125e18);
-    UD60x18 public constant SLOPE = UD60x18.wrap(0.0025e18);
+contract Solaxy is ISolaxy, ERC20Permit, ERC20FlashMint {
+    ERC20 public constant RESERVE_ASSET = ERC20(0x0000000000000000000000000000000000000000); // ToDo: use asset L1 contract address
+    address public constant FEE_ACCOUNT = 0x0000000000000000000000000000000000000000; // ToDo: use correct fee address
+    address public constant M3TER = 0x0000000000000000000000000000000000000000; // ToDo: use m3ter L1 contract address
+    UD60x18 public constant SEMI_SLOPE = UD60x18.wrap(0.0000125e18);
 
     modifier onlyM3terAccount(address account) {
         (uint256 chainId, address tokenContract, uint256 tokenId) = IERC6551Account(account).token();
@@ -25,14 +27,7 @@ contract Solaxy is ISolaxy, ERC20, ERC20Permit {
         _;
     }
 
-    /**
-     * @dev Constructs the Solaxy contract, checks the sDAI token address and the fee account address.
-     */
-    constructor() ERC20("Solaxy", "SLX") ERC20Permit("Solaxy") {
-        if (address(M3TER) == address(0)) revert CannotBeZero();
-        if (address(USD3) == address(0)) revert CannotBeZero();
-        if (FEE_ACCOUNT == address(0)) revert CannotBeZero();
-    }
+    constructor() ERC20("Solaxy", "SLX") ERC20Permit("Solaxy") {}
 
     /**
      * @dev See {IERC4626-deposit}.
@@ -164,15 +159,15 @@ contract Solaxy is ISolaxy, ERC20, ERC20Permit {
      * @return price The current price along the bonding curve.
      */
     function currentPrice() external view returns (uint256) {
-        return ud60x18(totalSupply()).mul(SLOPE).intoUint256();
+        return ud60x18(2 * totalSupply()).mul(SEMI_SLOPE).intoUint256();
     }
 
     /**
-     * @dev See {IERC4626-convertToShares}.1
+     * @dev See {IERC4626-convertToShares}.
      */
     function convertToShares(uint256 assets) external view returns (uint256 shares) {
         if (totalAssets() < assets) revert Undersupply();
-        UD60x18 conversionPrice = ud60x18(totalSupply()).mul(HALF_SLOPE);
+        UD60x18 conversionPrice = ud60x18(totalSupply()).mul(SEMI_SLOPE);
         shares = ud60x18(assets).div(conversionPrice).intoUint256();
     }
 
@@ -181,7 +176,7 @@ contract Solaxy is ISolaxy, ERC20, ERC20Permit {
      */
     function convertToAssets(uint256 shares) external view returns (uint256 assets) {
         if (totalSupply() < shares) revert Undersupply();
-        UD60x18 conversionPrice = ud60x18(totalSupply()).mul(HALF_SLOPE);
+        UD60x18 conversionPrice = ud60x18(totalSupply()).mul(SEMI_SLOPE);
         assets = ud60x18(shares).mul(conversionPrice).intoUint256();
     }
 
@@ -217,14 +212,14 @@ contract Solaxy is ISolaxy, ERC20, ERC20Permit {
      * @dev See {IERC4626-asset}.
      */
     function asset() external pure returns (address assetTokenAddress) {
-        return address(USD3);
+        return address(RESERVE_ASSET);
     }
 
     /**
      * @dev See {IERC4626-totalAssets}.
      */
     function totalAssets() public view returns (uint256 totalManagedAssets) {
-        totalManagedAssets = USD3.balanceOf(address(this));
+        totalManagedAssets = RESERVE_ASSET.balanceOf(address(this));
     }
 
     /**
@@ -237,7 +232,7 @@ contract Solaxy is ISolaxy, ERC20, ERC20Permit {
      */
     function computeDeposit(uint256 assets, uint256 totalSupply) public pure returns (uint256 shares) {
         UD60x18 initialSupply = ud60x18(totalSupply);
-        shares = initialSupply.powu(2).add(ud60x18(assets).div(HALF_SLOPE)).sqrt().sub(initialSupply).intoUint256();
+        shares = initialSupply.powu(2).add(ud60x18(assets).div(SEMI_SLOPE)).sqrt().sub(initialSupply).intoUint256();
     }
 
     /**
@@ -253,7 +248,7 @@ contract Solaxy is ISolaxy, ERC20, ERC20Permit {
      */
     function computeWithdraw(uint256 assets, uint256 totalSupply) public pure returns (uint256 shares, uint256 fee) {
         UD60x18 initialSupply = ud60x18(totalSupply);
-        UD60x18 withdrawnShares = initialSupply.sub(initialSupply.powu(2).sub(ud60x18(assets).div(HALF_SLOPE)).sqrt());
+        UD60x18 withdrawnShares = initialSupply.sub(initialSupply.powu(2).sub(ud60x18(assets).div(SEMI_SLOPE)).sqrt());
 
         shares = withdrawnShares.intoUint256();
         fee = withdrawnShares.mul(ud60x18(0.359e18)).intoUint256();
@@ -296,10 +291,10 @@ contract Solaxy is ISolaxy, ERC20, ERC20Permit {
     /**
      * @dev Deposit/mint common workflow.
      */
-    function _deposit(address receiver, uint256 assets, uint256 shares) internal {
+    function _deposit(address receiver, uint256 assets, uint256 shares) private {
         if (assets == 0) revert CannotBeZero();
         if (shares == 0) revert CannotBeZero();
-        if (!USD3.transferFrom(msg.sender, address(this), assets)) revert TransferError();
+        if (!RESERVE_ASSET.transferFrom(msg.sender, address(this), assets)) revert TransferError();
         _mint(receiver, shares);
         emit Deposit(msg.sender, receiver, assets, shares);
     }
@@ -307,7 +302,7 @@ contract Solaxy is ISolaxy, ERC20, ERC20Permit {
     /**
      * @dev Withdraw/redeem common workflow.
      */
-    function _withdraw(address receiver, address owner, uint256 assets, uint256 shares, uint256 fee) internal {
+    function _withdraw(address receiver, address owner, uint256 assets, uint256 shares, uint256 fee) private {
         if (fee == 0) revert CannotBeZero();
         if (assets == 0) revert CannotBeZero();
         if (shares == 0) revert CannotBeZero();
@@ -317,7 +312,7 @@ contract Solaxy is ISolaxy, ERC20, ERC20Permit {
         _burn(owner, shares);
 
         if (!transfer(FEE_ACCOUNT, fee)) revert TransferError();
-        if (!USD3.transfer(receiver, assets)) revert TransferError();
+        if (!RESERVE_ASSET.transfer(receiver, assets)) revert TransferError();
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
 
@@ -334,11 +329,11 @@ contract Solaxy is ISolaxy, ERC20, ERC20Permit {
      * @return assets The computed assets as an instance of UD60x18 (a fixed-point number).
      */
     function _convertToAssets(UD60x18 lesserSupplyAmount, UD60x18 largerSupplyAmount)
-        internal
+        private
         pure
         returns (UD60x18 assets)
     {
         UD60x18 sqrDiff = largerSupplyAmount.powu(2).sub(lesserSupplyAmount.powu(2));
-        return sqrDiff.mul(HALF_SLOPE);
+        return sqrDiff.mul(SEMI_SLOPE);
     }
 }

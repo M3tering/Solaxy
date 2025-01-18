@@ -16,10 +16,10 @@ import {ERC20FlashMint} from "@openzeppelin/contracts@5.1.0/token/ERC20/extensio
  * @custom:security-contact 25nzij1r3@mozmail.com
  */
 contract Solaxy is ISolaxy, ERC20Permit, ERC20FlashMint {
-    ERC20 public constant RESERVE_ASSET = ERC20(0x0000000000000000000000000000000000000000); // ToDo: use asset L1 contract address
-    address public constant FEE_ACCOUNT = 0x0000000000000000000000000000000000000000; // ToDo: use correct fee address
-    address public constant M3TER = 0x0000000000000000000000000000000000000000; // ToDo: use m3ter L1 contract address
     UD60x18 public constant SEMI_SLOPE = UD60x18.wrap(0.0000125e18);
+    address public constant M3TER = 0x0000000000000000000000000000000000000000; // ToDo: use m3ter L1 contract address
+    address public constant FEE_ACCOUNT = 0x0000000000000000000000000000000000000000; // ToDo: use correct fee address
+    ERC20 public constant RESERVE_ASSET = ERC20(0x0000000000000000000000000000000000000000); // ToDo: use asset L1 contract address
 
     modifier onlyM3terAccount(address account) {
         (uint256 chainId, address tokenContract, uint256 tokenId) = IERC6551Account(account).token();
@@ -29,34 +29,22 @@ contract Solaxy is ISolaxy, ERC20Permit, ERC20FlashMint {
 
     constructor() ERC20("Solaxy", "SLX") ERC20Permit("Solaxy") {}
 
-    /**
-     * @dev See {IERC4626-deposit}.
-     */
     function deposit(uint256 assets, address receiver) external onlyM3terAccount(receiver) returns (uint256 shares) {
         shares = computeDeposit(assets, totalSupply());
         _deposit(receiver, assets, shares);
     }
 
-    /**
-     * @dev See {IERC4626-withdraw}.
-     */
     function withdraw(uint256 assets, address receiver, address owner) external returns (uint256 shares) {
         uint256 fee;
         (shares, fee) = computeWithdraw(assets, totalSupply());
         _withdraw(receiver, owner, assets, shares, fee);
     }
 
-    /**
-     * @dev See {IERC4626-mint}.
-     */
     function mint(uint256 shares, address receiver) external onlyM3terAccount(receiver) returns (uint256 assets) {
         assets = computeMint(shares, totalSupply());
         _deposit(receiver, assets, shares);
     }
 
-    /**
-     * @dev See {IERC4626-redeem}.
-     */
     function redeem(uint256 shares, address receiver, address owner) external returns (uint256 assets) {
         uint256 fee;
         (shares, assets, fee) = computeRedeem(shares, totalSupply());
@@ -119,16 +107,10 @@ contract Solaxy is ISolaxy, ERC20Permit, ERC20FlashMint {
         _withdraw(receiver, owner, assets, shares, fee);
     }
 
-    /**
-     * @dev See {IERC4626-previewDeposit}.
-     */
     function previewDeposit(uint256 assets) external view returns (uint256 shares) {
         return computeDeposit(assets, totalSupply());
     }
 
-    /**
-     * @dev See {IERC4626-previewWithdraw}.
-     */
     function previewWithdraw(uint256 assets) external view returns (uint256 shares) {
         uint256 fee;
         if (totalAssets() < assets) revert Undersupply();
@@ -136,16 +118,10 @@ contract Solaxy is ISolaxy, ERC20Permit, ERC20FlashMint {
         return shares + fee;
     }
 
-    /**
-     * @dev See {IERC4626-previewMint}.
-     */
     function previewMint(uint256 shares) external view returns (uint256 assets) {
         return computeMint(shares, totalSupply());
     }
 
-    /**
-     * @dev See {IERC4626-previewRedeem}.
-     */
     function previewRedeem(uint256 shares) external view returns (uint256 assets) {
         if (totalSupply() < shares) revert Undersupply();
         (, assets,) = computeRedeem(shares, totalSupply());
@@ -162,62 +138,38 @@ contract Solaxy is ISolaxy, ERC20Permit, ERC20FlashMint {
         return ud60x18(2 * totalSupply()).mul(SEMI_SLOPE).intoUint256();
     }
 
-    /**
-     * @dev See {IERC4626-convertToShares}.
-     */
     function convertToShares(uint256 assets) external view returns (uint256 shares) {
         if (totalAssets() < assets) revert Undersupply();
         UD60x18 conversionPrice = ud60x18(totalSupply()).mul(SEMI_SLOPE);
         shares = ud60x18(assets).div(conversionPrice).intoUint256();
     }
 
-    /**
-     * @dev See {IERC4626-convertToAssets}.
-     */
     function convertToAssets(uint256 shares) external view returns (uint256 assets) {
         if (totalSupply() < shares) revert Undersupply();
         UD60x18 conversionPrice = ud60x18(totalSupply()).mul(SEMI_SLOPE);
         assets = ud60x18(shares).mul(conversionPrice).intoUint256();
     }
 
-    /**
-     * @dev See {IERC4626-maxWithdraw}.
-     */
     function maxWithdraw(address owner) external view returns (uint256 maxAssets) {
         (, maxAssets,) = computeRedeem(balanceOf(owner), totalSupply());
     }
 
-    /**
-     * @dev See {IERC4626-maxRedeem}.
-     */
     function maxRedeem(address owner) external view returns (uint256 maxShares) {
         return balanceOf(owner);
     }
 
-    /**
-     * @dev See {IERC4626-maxDeposit}.
-     */
     function maxDeposit(address) external pure returns (uint256 maxAssets) {
         return type(uint256).max;
     }
 
-    /**
-     * @dev See {IERC4626-maxMint}.
-     */
     function maxMint(address) external pure returns (uint256 maxShares) {
         return type(uint256).max;
     }
 
-    /**
-     * @dev See {IERC4626-asset}.
-     */
     function asset() external pure returns (address assetTokenAddress) {
         return address(RESERVE_ASSET);
     }
 
-    /**
-     * @dev See {IERC4626-totalAssets}.
-     */
     function totalAssets() public view returns (uint256 totalManagedAssets) {
         totalManagedAssets = RESERVE_ASSET.balanceOf(address(this));
     }

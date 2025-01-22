@@ -19,7 +19,7 @@ import {ERC20FlashMint} from "@openzeppelin/contracts@5.1.0/token/ERC20/extensio
 contract Solaxy is ISolaxy, ERC20Permit, ERC20FlashMint {
     UD60x18 public constant SEMI_SLOPE = UD60x18.wrap(0.0000125e18);
     address public constant M3TER = 0x0000000000000000000000000000000000000000; // ToDo: use m3ter L1 contract address
-    ERC20 public constant RESERVE_ASSET = ERC20(0x0000000000000000000000000000000000000000); // ToDo: use asset L1 contract address
+    ERC20 public constant RESERVE = ERC20(0x0000000000000000000000000000000000000000); // ToDo: use asset L1 contract address
 
     modifier onlyM3terAccount(address account) {
         (uint256 chainId, address tokenContract, uint256 tokenId) = IERC6551Account(account).token();
@@ -167,11 +167,11 @@ contract Solaxy is ISolaxy, ERC20Permit, ERC20FlashMint {
     }
 
     function asset() external pure returns (address assetTokenAddress) {
-        return address(RESERVE_ASSET);
+        return address(RESERVE);
     }
 
     function totalAssets() public view returns (uint256 totalManagedAssets) {
-        totalManagedAssets = RESERVE_ASSET.balanceOf(address(this));
+        totalManagedAssets = RESERVE.balanceOf(address(this));
     }
 
     /**
@@ -246,7 +246,7 @@ contract Solaxy is ISolaxy, ERC20Permit, ERC20FlashMint {
     function _deposit(address receiver, uint256 assets, uint256 shares) private {
         if (assets == 0) revert CannotBeZero();
         if (shares == 0) revert CannotBeZero();
-        if (!RESERVE_ASSET.transferFrom(msg.sender, address(this), assets)) revert TransferError();
+        if (!RESERVE.transferFrom(msg.sender, address(this), assets)) revert TransferError();
         _mint(receiver, shares);
         emit Deposit(msg.sender, receiver, assets, shares);
     }
@@ -264,7 +264,7 @@ contract Solaxy is ISolaxy, ERC20Permit, ERC20FlashMint {
         _burn(owner, shares);
 
         if (!transfer(tipAccount(), tip)) revert TransferError();
-        if (!RESERVE_ASSET.transfer(receiver, assets)) revert TransferError();
+        if (!RESERVE.transfer(receiver, assets)) revert TransferError();
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
 

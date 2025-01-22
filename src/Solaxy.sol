@@ -12,7 +12,7 @@ import {ERC20FlashMint} from "@openzeppelin/contracts@5.1.0/token/ERC20/extensio
 /**
  * @title Solaxy
  * @author ichristwin.eth
- * @notice Token contract implementing a linear asset-backed bonding curve where the slope is 25 basis points (0.0025).
+ * @notice Token contract implementing a linear asset-backed bonding curve where the slope is 0.000025.
  * @dev Adheres to ERC-20 token standard and uses the ERC-4626 tokenized vault interface for bonding curve operations.
  * @custom:security-contact 25nzij1r3@mozmail.com
  */
@@ -281,21 +281,16 @@ contract Solaxy is ISolaxy, ERC20Permit, ERC20FlashMint {
     /**
      * @notice Computes assets as the area under a linear curve with a simplified form of the area of a trapezium,
      * f(x) = mx + c, and Area = 1/2 * (a + b) * h
-     * where `a` and `b` can be both f(lesserSupplyAmount) or f(largerSupplyAmount) depending if used in minting or redeeming.
-     * Calculates area as (largerSupplyAmount^2 - lesserSupplyAmount^2) * halfSlope, where halfSlope = (slope / 2)
+     * where `a` and `b` can be both f(amountX) or f(amountY) depending if used in minting or redeeming.
+     * Calculates area as SemiSlope * (amountY^2 - amountX^2), where SemiSlope = (0.000025 / 2)
      *
-     * @param lesserSupplyAmount The smaller supply in the operation (the initial supply during mint,
+     * @param amountX The smaller supply in the operation (the initial supply during mint,
      * or the final supply during a redeem operation).
-     * @param largerSupplyAmount The larger supply in the operation (the final supply during mint,
+     * @param amountY The larger supply in the operation (the final supply during mint,
      * or the initial supply during a redeem operation).
      * @return assets The computed assets as an instance of UD60x18 (a fixed-point number).
      */
-    function _convertToAssets(UD60x18 lesserSupplyAmount, UD60x18 largerSupplyAmount)
-        private
-        pure
-        returns (UD60x18 assets)
-    {
-        UD60x18 sqrDiff = largerSupplyAmount.powu(2).sub(lesserSupplyAmount.powu(2));
-        return sqrDiff.mul(SEMI_SLOPE);
+    function _convertToAssets(UD60x18 amountX, UD60x18 amountY) private pure returns (UD60x18) {
+        return SEMI_SLOPE.mul(amountY.powu(2).sub(amountX.powu(2)));
     }
 }

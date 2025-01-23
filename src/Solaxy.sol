@@ -18,8 +18,8 @@ import {ERC20FlashMint} from "@openzeppelin/contracts@5.2.0/token/ERC20/extensio
  */
 contract Solaxy is ISolaxy, ERC20Permit, ERC20FlashMint {
     UD60x18 public constant SEMI_SLOPE = UD60x18.wrap(0.0000125e18);
-    address public constant M3TER = 0x0000000000000000000000000000000000000000; // ToDo: use m3ter L1 contract address
-    ERC20 public constant RESERVE = ERC20(0x0000000000000000000000000000000000000000); // ToDo: use asset L1 contract address
+    address public constant M3TER = 0xb8118dBa15CB4b5F6b052c152a843cb3e89D29C7; // ToDo: use m3ter L1 contract address
+    ERC20 public constant RESERVE = ERC20(0x0d86883FAf4FfD7aEb116390af37746F45b6f378); // ToDo: use asset L1 contract address
 
     modifier onlyM3terAccount(address account) {
         (uint256 chainId, address tokenContract, uint256 tokenId) = IERC6551Account(account).token();

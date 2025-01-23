@@ -11,6 +11,7 @@ import {IERC721} from "@openzeppelin/contracts@5.2.0/interfaces/IERC721.sol";
 contract SolaxyUnitTest is Test {
     Solaxy public SLX;
     IERC20 public reserve;
+    address public user;
     address public here;
     address public SLX_address;
     address public reserve_address;
@@ -31,15 +32,18 @@ contract SolaxyUnitTest is Test {
 
         reserve_address = SLX.asset();
         reserve = IERC20(reserve_address);
-        deal(reserve_address, here, reserve_balanceOneMillion, true);
-        reserve.approve(SLX_address, reserve_balanceOneMillion);
-    }
+        deal(reserve_address, here, reserve_balanceOneMillion, true); // deal here
+        reserve.approve(SLX_address, reserve_balanceOneMillion); // approve here
 
-    function m3terAccount() public returns (address) {
         // ERC6551@v0.3.1 Registry contract & Implementation Proxy addresses respectively
-        return IERC6551Registry(0x000000006551c19487814612e58FE06813775758).createAccount(
-            0x55266d75D1a14E4572138116aF39863Ed6596E7F, 0x0, 1, SLX.M3TER(), vm.randomUint()
+        // Note that account wouldn't work as expected unless deployed and properly initialized (if proxy)
+        user = IERC6551Registry(0x000000006551c19487814612e58FE06813775758).account(
+            0x780e323E6120a0b4A47089f6395a0B809d8C2845, 0x0, 1, SLX.M3TER(), 0 // vm.randomUint()
         );
+
+        deal(reserve_address, user, reserve_balanceOneMillion, true); // deal user
+        vm.prank(user);
+        reserve.approve(SLX_address, reserve_balanceOneMillion);  // approve user
     }
 
     function testInitialBalanceWithNewSolaxyContract() public view {
@@ -55,7 +59,7 @@ contract SolaxyUnitTest is Test {
         assertEq(SLX_address.balance, initialEthBalance, "asset cannot receive ether transfer");
     }
 
-    function testNonM3terAccount() public {
+    function testFailNonM3terAccount() public {
         vm.expectRevert(ISolaxy.RequiresM3ter.selector);
         SLX.deposit(reserve_amountDeposited, here);
 
@@ -64,14 +68,14 @@ contract SolaxyUnitTest is Test {
     }
 
     function testM3terAccountDepositAndWithdraw() public {
-        vm.prank(m3terAccount());
-        uint256 SLX_InitialBalance = SLX.balanceOf(here);
+        vm.startPrank(user);
+        uint256 SLX_InitialBalance = SLX.balanceOf(user);
         uint256 reserve_initialBalance = reserve.balanceOf(SLX_address);
 
         // Deposit reserve to Solaxy contract
-        SLX.deposit(reserve_amountDeposited, here);
+        SLX.deposit(reserve_amountDeposited, user);
         uint256 SLX_supplyAfterDeposit = SLX.totalSupply();
-        uint256 SLX_balanceAfterDeposit = SLX.balanceOf(here);
+        uint256 SLX_balanceAfterDeposit = SLX.balanceOf(user);
         uint256 reserve_balanceAfterDeposit = reserve.balanceOf(SLX_address);
 
         assertEq(SLX_InitialBalance, 0, "SLX balance should be 0 before deposit");
@@ -85,10 +89,11 @@ contract SolaxyUnitTest is Test {
         assertEq(convertedShares, SLX_amountMinted);
 
         // Withdraw reserve from Solaxy contract
-        SLX.withdraw(reserve_amountWithdrawn, here, here);
+        SLX.withdraw(reserve_amountWithdrawn, user, user);
         uint256 SLX_supplyAfterWithdraw = SLX.totalSupply();
-        uint256 SLX_balanceAfterWithdraw = SLX.balanceOf(here);
+        uint256 SLX_balanceAfterWithdraw = SLX.balanceOf(user);
         uint256 reserve_balanceAfterWithdraw = reserve.balanceOf(SLX_address);
+        vm.stopPrank();
 
         assertEq(
             SLX_balanceAfterWithdraw,
@@ -112,14 +117,14 @@ contract SolaxyUnitTest is Test {
     }
 
     function testM3terAccountMintAndRedeem() public {
-        vm.prank(m3terAccount());
-        uint256 SLX_initialBalance = SLX.balanceOf(here);
+        vm.startPrank(user);
+        uint256 SLX_initialBalance = SLX.balanceOf(user);
         uint256 reserve_initialBalance = reserve.balanceOf(SLX_address);
 
         // Mint new SLX tokens
-        SLX.mint(SLX_amountMinted, here);
+        SLX.mint(SLX_amountMinted, user);
         uint256 SLX_supplyAfterMint = SLX.totalSupply();
-        uint256 SLX_balanceAfterMint = SLX.balanceOf(here);
+        uint256 SLX_balanceAfterMint = SLX.balanceOf(user);
         uint256 reserve_balanceAfterMint = reserve.balanceOf(SLX_address);
 
         assertEq(SLX_initialBalance, 0, "SLX balance should be 0 before minting");
@@ -133,10 +138,11 @@ contract SolaxyUnitTest is Test {
         assertEq(convertedAssets, reserve_amountDeposited);
 
         // Redeem SLX tokens
-        SLX.redeem(SLX_amountIn, here, here);
+        SLX.redeem(SLX_amountIn, user, user);
         uint256 SLX_supplyAfterRedeem = SLX.totalSupply();
-        uint256 SLX_balanceAfterRedeem = SLX.balanceOf(here);
+        uint256 SLX_balanceAfterRedeem = SLX.balanceOf(user);
         uint256 reserve_balanceAfterRedeem = reserve.balanceOf(SLX_address);
+        vm.stopPrank();
 
         assertEq(
             SLX_balanceAfterRedeem, SLX_balanceAfterMint - SLX_amountIn, "SLX balance should decrease after redeeming"

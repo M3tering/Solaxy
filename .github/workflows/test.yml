@@ -2,9 +2,9 @@ name: test
 
 on: 
   push:
-    branches: [ "main" ]
+    branches: [ "dev-2.0" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "dev-2.0" ]
 
 env:
   FOUNDRY_PROFILE: ci

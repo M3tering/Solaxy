@@ -9,6 +9,7 @@ import {Test} from "forge-std/Test.sol";
 import {Solaxy} from "../src/Solaxy.sol";
 import {IERC20} from "@openzeppelin/contracts@5.2.0/interfaces/IERC20.sol";
 import {ISolaxy} from "../src/interfaces/ISolaxy.sol";
+import {IERC6551Registry} from "../src/interfaces/IERC6551Registry.sol";
 
 uint256 constant reserve_balanceOneBillion = 1e9 * 1e18;
 
@@ -57,9 +58,9 @@ contract SolaxyInvarantTest is Test {
     Handler public handler;
     Solaxy public SLX;
     IERC20 public reserve;
+    address public user;
     address public SLX_address;
     address public reserve_address;
-    address public handlerAddress;
 
     function setUp() public {
         string memory url = vm.rpcUrl("ethereum-mainnet");
@@ -71,21 +72,25 @@ contract SolaxyInvarantTest is Test {
         reserve_address = SLX.asset();
         reserve = IERC20(reserve_address);
 
-        handler = new Handler(SLX, reserve);
-        handlerAddress = address(handler);
+        // ERC6551@v0.3.1 Registry contract & Implementation Proxy addresses respectively
+        // Note that account wouldn't work as expected unless deployed and properly initialized (if proxy)
+        user = IERC6551Registry(0x000000006551c19487814612e58FE06813775758).account(
+            0x780e323E6120a0b4A47089f6395a0B809d8C2845, 0x0, 1, SLX.M3TER(), 0 // vm.randomUint()
+        );
 
-        deal(reserve_address, handlerAddress, reserve_balanceOneBillion, true);
-        dealERC721(address(SLX.M3TER()), handlerAddress, 0);
-        targetContract(handlerAddress);
+        deal(reserve_address, user, reserve_balanceOneBillion, true); // deal user
+        vm.startPrank(user);
+        reserve.approve(SLX_address, reserve_balanceOneBillion);  // approve user
+        targetContract(address(new Handler(SLX, reserve)));
     }
 
     function invariantValuation() public view {
-        uint256 reserve_balanceAfterTest = reserve.balanceOf(handlerAddress);
+        uint256 reserve_balanceAfterTest = reserve.balanceOf(user);
         uint256 solaxyTVL = reserve_balanceOneBillion - reserve_balanceAfterTest;
         assertEq(SLX.totalAssets(), solaxyTVL, "Total value locked should be strictly equal to total reserve assets");
 
         uint256 totalFees = SLX.balanceOf(SLX.tipAccount());
-        uint256 totalHoldings = SLX.balanceOf(handlerAddress);
+        uint256 totalHoldings = SLX.balanceOf(user);
         assertEq(
             SLX.totalSupply(),
             totalHoldings + totalFees,

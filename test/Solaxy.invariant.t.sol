@@ -84,7 +84,7 @@ contract SolaxyInvarantTest is Test {
         uint256 solaxyTVL = sDAI_balanceOneBillion - sDAI_balanceAfterTest;
         assertEq(SLX.totalAssets(), solaxyTVL, "Total value locked should be strictly equal to total reserve assets");
 
-        uint256 totalFees = SLX.balanceOf(SLX.FEE_ACCOUNT());
+        uint256 totalFees = SLX.balanceOf(SLX.tipAccount());
         uint256 totalHoldings = SLX.balanceOf(handlerAddress);
         assertEq(
             SLX.totalSupply(),
@@ -95,7 +95,7 @@ contract SolaxyInvarantTest is Test {
         assertGe(
             SLX.totalAssets() + 1 wei,
             SLX.convertToAssets(SLX.totalSupply()),
-            "Total reserve assets must be enough to cover the converstion of all existing tokens with a margin of error of only 1e-18 sDAI"
+            "Total reserve assets must be enough to cover the conversion of all existing tokens with a margin of error of only 1e-18 sDAI"
         );
     }
 

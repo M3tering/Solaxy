@@ -179,11 +179,11 @@ contract Solaxy is ISolaxy, ERC20Permit, ERC20FlashMint {
      * Utilizes the equation y = sqrt((0.00125x^2 + A) / 0.00125) - x, derived from the trapezium area formula.
      *
      * @param assets The amount of assets to be deposited.
-     * @param totalSupply The total supply of shares in the system.
+     * @param totalShares The total supply of shares in the system.
      * @return shares The calculated number of shares minted for the deposited assets.
      */
-    function computeDeposit(uint256 assets, uint256 totalSupply) public pure returns (uint256 shares) {
-        UD60x18 initialSupply = ud60x18(totalSupply);
+    function computeDeposit(uint256 assets, uint256 totalShares) public pure returns (uint256 shares) {
+        UD60x18 initialSupply = ud60x18(totalShares);
         shares = initialSupply.powu(2).add(ud60x18(assets).div(SEMI_SLOPE)).sqrt().sub(initialSupply).intoUint256();
     }
 
@@ -194,12 +194,12 @@ contract Solaxy is ISolaxy, ERC20Permit, ERC20FlashMint {
      *
      * @dev Throws an error if the total assets are less than the specified withdrawal amount.
      * @param assets The amount of assets to be withdrawn.
-     * @param totalSupply The total supply of shares in the system.
+     * @param totalShares The total supply of shares in the system.
      * @return shares The calculated number of shares to be burned in the withdrawal.
      * @return tip The tip included in the required shares.
      */
-    function computeWithdraw(uint256 assets, uint256 totalSupply) public pure returns (uint256 shares, uint256 tip) {
-        UD60x18 initialSupply = ud60x18(totalSupply);
+    function computeWithdraw(uint256 assets, uint256 totalShares) public pure returns (uint256 shares, uint256 tip) {
+        UD60x18 initialSupply = ud60x18(totalShares);
         UD60x18 withdrawnShares = initialSupply.sub(initialSupply.powu(2).sub(ud60x18(assets).div(SEMI_SLOPE)).sqrt());
 
         shares = withdrawnShares.intoUint256();
@@ -209,11 +209,11 @@ contract Solaxy is ISolaxy, ERC20Permit, ERC20FlashMint {
     /**
      * @notice Computes the assets to be minted for a given number of shares using _convertToAssets.
      * @param shares The number of shares to be minted.
-     * @param totalSupply The total supply of shares in the system.
+     * @param totalShares The total supply of shares in the system.
      * @return assets The computed assets as a uint256 value.
      */
-    function computeMint(uint256 shares, uint256 totalSupply) public pure returns (uint256 assets) {
-        assets = _convertToAssets(ud60x18(totalSupply), ud60x18(totalSupply + shares)).intoUint256();
+    function computeMint(uint256 shares, uint256 totalShares) public pure returns (uint256 assets) {
+        assets = _convertToAssets(ud60x18(totalShares), ud60x18(totalShares + shares)).intoUint256();
     }
 
     /**
@@ -221,61 +221,56 @@ contract Solaxy is ISolaxy, ERC20Permit, ERC20FlashMint {
      * It calculates the assets to be redeemed using the _convertToAssets function and applies a 26.4% tip.
      *
      * @param shares The number of shares to be redeemed.
-     * @param totalSupply The total supply of shares in the system.
+     * @param totalShares The total supply of shares in the system.
      * @return burnShare The number of shares to be burned.
      * @return assets The computed assets as a uint256 value.
      * @return tip deducted from the redeemed assets as a uint256 value.
      */
-    function computeRedeem(uint256 shares, uint256 totalSupply)
+    function computeRedeem(uint256 shares, uint256 totalShares)
         public
         pure
         returns (uint256 burnShare, uint256 assets, uint256 tip)
     {
         UD60x18 _tip = ud60x18(shares).mul(ud60x18(0.264e18));
         UD60x18 _burnShare = ud60x18(shares).sub(_tip);
-        UD60x18 finalSupply = ud60x18(totalSupply).sub(_burnShare);
+        UD60x18 finalSupply = ud60x18(totalShares).sub(_burnShare);
 
-        assets = _convertToAssets(finalSupply, ud60x18(totalSupply)).intoUint256();
+        assets = _convertToAssets(finalSupply, ud60x18(totalShares)).intoUint256();
         burnShare = _burnShare.intoUint256();
         tip = _tip.intoUint256();
+    }
+
+    /**
+     * @dev Returns ERC6551 account for M3ter 0.
+     */
+    function tipAccount() public view returns (address) {
+        // ERC6551@v0.3.1 Registry contract & Implementation Proxy addresses respectively
+        return IERC6551Registry(0x000000006551c19487814612e58FE06813775758).account(
+            0x55266d75D1a14E4572138116aF39863Ed6596E7F, 0x0, 1, M3TER, 0
+        );
     }
 
     /**
      * @dev Deposit/mint common workflow.
      */
     function _deposit(address receiver, uint256 assets, uint256 shares) private {
-        if (assets == 0) revert CannotBeZero();
-        if (shares == 0) revert CannotBeZero();
-        if (!RESERVE.transferFrom(msg.sender, address(this), assets)) revert TransferError();
-        _mint(receiver, shares);
         emit Deposit(msg.sender, receiver, assets, shares);
+        if (assets == shares || shares == 0) revert CannotBeZero();
+        if (RESERVE.transferFrom(msg.sender, address(this), assets)) _mint(receiver, shares);
+        revert TransferError();
     }
 
     /**
      * @dev Withdraw/redeem common workflow.
      */
     function _withdraw(address receiver, address owner, uint256 assets, uint256 shares, uint256 tip) private {
-        if (tip == 0) revert CannotBeZero();
-        if (assets == 0) revert CannotBeZero();
-        if (shares == 0) revert CannotBeZero();
-        if (totalAssets() < assets) revert Undersupply();
-        if (totalSupply() < shares) revert Undersupply();
+        emit Withdraw(msg.sender, receiver, owner, assets, shares);
+        if (tip == 0 || assets == 0 || shares == 0) revert CannotBeZero();
+        if (totalAssets() < assets || totalSupply() < shares) revert Undersupply();
         if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares + tip);
         _burn(owner, shares);
-
-        if (!transfer(tipAccount(), tip)) revert TransferError();
+        _transfer(owner, tipAccount(), tip);
         if (!RESERVE.transfer(receiver, assets)) revert TransferError();
-        emit Withdraw(msg.sender, receiver, owner, assets, shares);
-    }
-
-    /**
-     * @dev Returns ERC6551 account for M3ter 0.
-     */
-    function tipAccount() private view returns (address) {
-        // ERC6551@v0.3.1 Registry contract & Implementation Proxy addresses respectively
-        return IERC6551Registry(0x000000006551c19487814612e58FE06813775758).account(
-            0x55266d75D1a14E4572138116aF39863Ed6596E7F, 0x0, 1, M3TER, 0
-        );
     }
 
     /**

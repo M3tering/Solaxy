@@ -98,7 +98,7 @@ contract SolaxyUnitTest is Test {
         );
 
         // Check for fees
-        uint256 SLX_feeBalance = SLX.balanceOf(SLX.FEE_ACCOUNT());
+        uint256 SLX_feeBalance = SLX.balanceOf(SLX.tipAccount());
         assertEq(SLX_feeBalance, 1795000000000000000);
     }
 
@@ -149,7 +149,7 @@ contract SolaxyUnitTest is Test {
         );
 
         // Check for fees
-        uint256 SLX_feeBalance = SLX.balanceOf(SLX.FEE_ACCOUNT());
+        uint256 SLX_feeBalance = SLX.balanceOf(SLX.tipAccount());
         assertEq(SLX_feeBalance, 1793880000000000000);
     }
 

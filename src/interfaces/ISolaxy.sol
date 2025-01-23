@@ -23,4 +23,6 @@ interface ISolaxy is IERC4626 {
         returns (uint256 assets);
 
     function currentPrice() external returns (uint256);
+
+    function tipAccount() external returns (address);
 }

@@ -5,9 +5,9 @@ import {ISolaxy} from "./interfaces/ISolaxy.sol";
 import {IERC6551Account} from "./interfaces/IERC6551Account.sol";
 import {IERC6551Registry} from "./interfaces/IERC6551Registry.sol";
 import {UD60x18, ud60x18} from "@prb/math@4.1.0/src/UD60x18.sol";
-import {ERC20} from "@openzeppelin/contracts@5.1.0/token/ERC20/ERC20.sol";
-import {ERC20Permit} from "@openzeppelin/contracts@5.1.0/token/ERC20/extensions/ERC20Permit.sol";
-import {ERC20FlashMint} from "@openzeppelin/contracts@5.1.0/token/ERC20/extensions/ERC20FlashMint.sol";
+import {ERC20} from "@openzeppelin/contracts@5.2.0/token/ERC20/ERC20.sol";
+import {ERC20Permit} from "@openzeppelin/contracts@5.2.0/token/ERC20/extensions/ERC20Permit.sol";
+import {ERC20FlashMint} from "@openzeppelin/contracts@5.2.0/token/ERC20/extensions/ERC20FlashMint.sol";
 
 /**
  * @title Solaxy
@@ -256,8 +256,8 @@ contract Solaxy is ISolaxy, ERC20Permit, ERC20FlashMint {
     function _deposit(address receiver, uint256 assets, uint256 shares) private {
         emit Deposit(msg.sender, receiver, assets, shares);
         if (assets == shares || shares == 0) revert CannotBeZero();
-        if (RESERVE.transferFrom(msg.sender, address(this), assets)) _mint(receiver, shares);
-        revert TransferError();
+        if (!RESERVE.transferFrom(msg.sender, address(this), assets)) revert TransferError();
+        _mint(receiver, shares);
     }
 
     /**

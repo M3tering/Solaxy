@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {IERC4626} from "@openzeppelin/contracts@5.1.0/interfaces/IERC4626.sol";
+import {IERC4626} from "@openzeppelin/contracts@5.2.0/interfaces/IERC4626.sol";
 
 interface ISolaxy is IERC4626 {
     error Undersupply();

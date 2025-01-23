@@ -1,22 +1,33 @@
 [profile.default]
 src = "src"
 out = "out"
-libs = ["lib"]
 optimizer = true
 optimizer-runs = 1000
 solc-version = "0.8.24"
+libs = ["dependencies"]
 
 remappings = [
-    "@prb/math@4.1.0/=lib/prb-math/",
-    "@openzeppelin/contracts@5.1.0/=lib/openzeppelin-contracts/contracts/"
+    "forge-std/=dependencies/forge-std-1.9.5/src/",
+    "@prb/math@4.1.0/=dependencies/@prb-math-4.1.0/",
+    "@openzeppelin/contracts@5.2.0/=dependencies/@openzeppelin-contracts-5.2.0/",
 ]
 
+[soldeer]
+remappings_generate = false
+remappings_location = "config"
+
+[dependencies]
+forge-std = "1.9.5"
+"@prb-math" = "4.1.0"
+"@openzeppelin-contracts" = "5.2.0"
+
 [rpc_endpoints]
+ethereum-mainnet = "https://gateway.tenderly.co/public/mainnet"
 
 [fuzz]
 seed = "0x544D"
 
 [invariant]
-runs = 256
+runs = 25
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

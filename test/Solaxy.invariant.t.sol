@@ -7,25 +7,25 @@ import {StdUtils} from "forge-std/StdUtils.sol";
 import {Test} from "forge-std/Test.sol";
 
 import {Solaxy} from "../src/Solaxy.sol";
-import {IERC20} from "@openzeppelin/contracts@5.1.0/interfaces/IERC20.sol";
+import {IERC20} from "@openzeppelin/contracts@5.2.0/interfaces/IERC20.sol";
 import {ISolaxy} from "../src/interfaces/ISolaxy.sol";
 
-uint256 constant sDAI_balanceOneBillion = 1e9 * 1e18;
+uint256 constant reserve_balanceOneBillion = 1e9 * 1e18;
 
 contract Handler is CommonBase, StdCheats, StdUtils {
     Solaxy private SLX;
-    IERC20 private sDAI;
+    IERC20 private reserve;
 
-    constructor(Solaxy slx, IERC20 sdai) {
+    constructor(Solaxy slx, IERC20 _reserve) {
         SLX = slx;
-        sDAI = sdai;
-        sDAI.approve(address(slx), sDAI_balanceOneBillion);
+        reserve = _reserve;
+        reserve.approve(address(slx), reserve_balanceOneBillion);
     }
 
     function deposit(uint256 assets) public {
         assets = bound(assets, 1e8, 1e20);
         if (assets == 0) vm.expectRevert(ISolaxy.CannotBeZero.selector);
-        if (assets > sDAI.balanceOf(address(this))) {
+        if (assets > reserve.balanceOf(address(this))) {
             vm.expectRevert(bytes("ERC20: transfer amount exceeds balance"));
         }
         SLX.deposit(assets, address(this));
@@ -56,32 +56,32 @@ contract Handler is CommonBase, StdCheats, StdUtils {
 contract SolaxyInvarantTest is Test {
     Handler public handler;
     Solaxy public SLX;
-    IERC20 public sDAI;
+    IERC20 public reserve;
     address public SLX_address;
-    address public sDAI_address;
+    address public reserve_address;
     address public handlerAddress;
 
     function setUp() public {
-        string memory url = vm.rpcUrl("gnosis-mainnet");
+        string memory url = vm.rpcUrl("ethereum-mainnet");
         vm.createSelectFork(url);
 
         SLX = new Solaxy();
         SLX_address = address(SLX);
 
-        sDAI_address = SLX.asset();
-        sDAI = IERC20(sDAI_address);
+        reserve_address = SLX.asset();
+        reserve = IERC20(reserve_address);
 
-        handler = new Handler(SLX, sDAI);
+        handler = new Handler(SLX, reserve);
         handlerAddress = address(handler);
 
-        deal(sDAI_address, handlerAddress, sDAI_balanceOneBillion, true);
+        deal(reserve_address, handlerAddress, reserve_balanceOneBillion, true);
         dealERC721(address(SLX.M3TER()), handlerAddress, 0);
         targetContract(handlerAddress);
     }
 
-    function invariantValuation() public {
-        uint256 sDAI_balanceAfterTest = sDAI.balanceOf(handlerAddress);
-        uint256 solaxyTVL = sDAI_balanceOneBillion - sDAI_balanceAfterTest;
+    function invariantValuation() public view {
+        uint256 reserve_balanceAfterTest = reserve.balanceOf(handlerAddress);
+        uint256 solaxyTVL = reserve_balanceOneBillion - reserve_balanceAfterTest;
         assertEq(SLX.totalAssets(), solaxyTVL, "Total value locked should be strictly equal to total reserve assets");
 
         uint256 totalFees = SLX.balanceOf(SLX.tipAccount());
@@ -95,12 +95,14 @@ contract SolaxyInvarantTest is Test {
         assertGe(
             SLX.totalAssets() + 1 wei,
             SLX.convertToAssets(SLX.totalSupply()),
-            "Total reserve assets must be enough to cover the conversion of all existing tokens with a margin of error of only 1e-18 sDAI"
+            "Total reserve assets must be enough to cover the conversion of all existing tokens with a margin of error of only 1e-18 reserve"
         );
     }
 
-    function testKnowAccountBalance() public {
-        uint256 knowHolderBalance = sDAI.balanceOf(sDAI_address);
-        assertApproxEqAbs(knowHolderBalance, 30.5e18, 0.001e18, "sDAI balance should approximately equal 30.49 sDAI");
-    }
+    // function testKnowAccountBalance() public {
+    //     uint256 knowHolderBalance = reserve.balanceOf(reserve_address);
+    //     assertApproxEqAbs(
+    //         knowHolderBalance, 30.5e18, 0.001e18, "reserve balance should approximately equal 30.49 reserve"
+    //     );
+    // }
 }

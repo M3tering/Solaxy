@@ -25,6 +25,11 @@ jobs:
         uses: foundry-rs/foundry-toolchain@v1.3.1
         with:
           version: stable
+      
+      - name: Clean unneeded submodules
+        run: | 
+          rm -r src/L2/Superchain/
+        id: clean
 
       - name: Run Forge build
         run: |

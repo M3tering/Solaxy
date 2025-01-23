@@ -26,7 +26,7 @@ jobs:
         with:
           version: stable
       
-      - name: Clean unneeded submodules
+      - name: Clean Unneeded Submodules
         run: | 
           rm -r src/L2/Superchain/
         id: clean
@@ -40,5 +40,11 @@ jobs:
 
       - name: Run Forge tests
         run: |
-          forge test -vvvv
+          forge test -vvv --json > logs/forge-test-log.json || true
         id: test
+
+      - name: Upload Test Log
+        uses: actions/upload-artifact@v3
+        with:
+          name: forge-test-log
+          path: logs/forge-test-log.json

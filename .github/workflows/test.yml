@@ -40,11 +40,11 @@ jobs:
 
       - name: Run Forge tests
         run: |
-          forge test -vvv --json > logs/forge-test-log.json || true
+          forge test -vvv --json > logs/forge-test-log-${{ matrix.runs-on }}.json || true
         id: test
 
       - name: Upload Test Log
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: forge-test-log
-          path: logs/forge-test-log.json
+          path: logs/forge-test-log-${{ matrix.runs-on }}.json

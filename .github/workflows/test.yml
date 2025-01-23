@@ -4,7 +4,7 @@ on:
   push:
     branches: [ "dev-2.0" ]
   pull_request:
-    branches: [ "dev-2.0" ]
+    branches: [ "main" ]
 
 env:
   FOUNDRY_PROFILE: ci
@@ -24,11 +24,12 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1.3.1
         with:
-          version: nightly
+          version: stable
 
       - name: Run Forge build
         run: |
           forge --version
+          forge soldeer install
           forge build --sizes
         id: build
 

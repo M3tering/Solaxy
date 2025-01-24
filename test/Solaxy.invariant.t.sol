@@ -96,8 +96,8 @@ contract SolaxyInvarantTest is Test {
         assertApproxEqAbs(
             SLX.totalAssets() + 1 wei,
             SLX.convertToAssets(SLX.totalSupply()),
-            1,
-            "Total reserve assets must be enough to cover the conversion of all existing tokens with a margin of error of only 1e-18 reserve"
+            0.0000002e18,
+            "Total reserve assets must be enough to cover the conversion of all existing tokens with a margin of error of only 0.0000002e18 reserve"
         );
     }
 

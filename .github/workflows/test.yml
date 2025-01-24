@@ -40,6 +40,5 @@ jobs:
 
       - name: Run Forge tests
         run: |
-          mkdir -p logs
           forge test -vvvvv
         id: test

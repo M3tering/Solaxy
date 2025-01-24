@@ -46,28 +46,20 @@ contract SolaxyUnitTest is Test {
         reserve.approve(SLX_address, reserve_balanceOneMillion); // approve user
     }
 
-    function testInitialBalanceWithNewSolaxyContract() public view {
+    function test_InitialSupplyOfSolaxyIsZero() public view {
         uint256 expected = 0;
         uint256 actual = SLX.totalSupply();
         assertEq(actual, expected, "New Solaxy contract should have 0 total supply");
     }
 
-    function testSendEtherToContract() public {
+    function test_ContractCannotReceiveEther() public {
         vm.expectRevert(); // expect a transaction revert during test.
         uint256 initialEthBalance = SLX_address.balance;
         payable(SLX_address).transfer(1 ether); // Sending 1 Ether to the contract
         assertEq(SLX_address.balance, initialEthBalance, "asset cannot receive ether transfer");
     }
 
-    function test_RevertNonM3terAccount() public {
-        vm.expectRevert(ISolaxy.RequiresM3ter.selector);
-        SLX.deposit(reserve_amountDeposited, here);
-
-        vm.expectRevert(ISolaxy.RequiresM3ter.selector);
-        SLX.mint(SLX_amountMinted, here);
-    }
-
-    function testM3terAccountDepositAndWithdraw() public {
+    function test_M3terAccountCanDepositAndWithdraw() public {
         vm.startPrank(user);
         uint256 SLX_InitialBalance = SLX.balanceOf(user);
         uint256 reserve_initialBalance = reserve.balanceOf(SLX_address);
@@ -116,7 +108,7 @@ contract SolaxyUnitTest is Test {
         assertEq(SLX_feeBalance, 17950000000000000000);
     }
 
-    function testM3terAccountMintAndRedeem() public {
+    function test_M3terAccountCanMintAndRedeem() public {
         vm.startPrank(user);
         uint256 SLX_initialBalance = SLX.balanceOf(user);
         uint256 reserve_initialBalance = reserve.balanceOf(SLX_address);
@@ -165,10 +157,16 @@ contract SolaxyUnitTest is Test {
         assertEq(SLX_feeBalance, 17938800000000000000);
     }
 
-    // function testKnowAccountBalance() public {
-    //     uint256 knowAccountBalance = reserve.balanceOf(reserve_address);
-    //     assertApproxEqAbs(
-    //         knowAccountBalance, 30.5e18, 0.001e18, "reserve balance should approximately equal 30.49 reserve"
-    //     );
-    // }
+    function test_RevertIf_CallerIsNotM3terAccount() public {
+        vm.expectRevert(ISolaxy.RequiresM3ter.selector);
+        SLX.deposit(reserve_amountDeposited, here);
+
+        vm.expectRevert(ISolaxy.RequiresM3ter.selector);
+        SLX.mint(SLX_amountMinted, here);
+    }
+
+    function test_knowHolderBalance() public view {
+        uint256 knowHolderBalance = reserve.balanceOf(0x4e59b44847b379578588920cA78FbF26c0B4956C);
+        assertEq(knowHolderBalance, 0.000864e18, "reserve balance should approximately equal 30.49 reserve");
+    }
 }

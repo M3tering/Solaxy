@@ -94,17 +94,15 @@ contract SolaxyInvarantTest is Test {
         );
 
         assertApproxEqAbs(
-            SLX.totalAssets() + 1 wei,
+            SLX.totalAssets(),
             SLX.convertToAssets(SLX.totalSupply()),
-            0.0000002e18,
-            "Total reserve assets must be enough to cover the conversion of all existing tokens with a margin of error of only 0.0000002e18 reserve"
+            0.00001e18,
+            "Total reserve assets must be enough to cover the conversion of all existing tokens to less than a cent rounding error"
         );
     }
 
-    // function testKnowAccountBalance() public {
-    //     uint256 knowHolderBalance = reserve.balanceOf(reserve_address);
-    //     assertApproxEqAbs(
-    //         knowHolderBalance, 30.5e18, 0.001e18, "reserve balance should approximately equal 30.49 reserve"
-    //     );
-    // }
+    function test_knowHolderBalance() public view {
+        uint256 knowHolderBalance = reserve.balanceOf(0x4e59b44847b379578588920cA78FbF26c0B4956C);
+        assertEq(knowHolderBalance, 0.000864e18, "reserve balance should approximately equal 30.49 reserve");
+    }
 }

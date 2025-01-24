@@ -165,6 +165,6 @@ contract SolaxyUnitTest is Test {
 
     function test_knowHolderBalance() public view {
         uint256 knowHolderBalance = reserve.balanceOf(0x4e59b44847b379578588920cA78FbF26c0B4956C);
-        assertEq(knowHolderBalance, 0.000864e18, "reserve balance should approximately equal 30.49 reserve");
+        assertEq(knowHolderBalance, 0.000864e18, "reserve balance should be equal 0.000864 reserve");
     }
 }

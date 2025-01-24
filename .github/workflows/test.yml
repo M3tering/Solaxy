@@ -2,7 +2,7 @@ name: test
 
 on: 
   push:
-    branches: [ "dev-2.0" ]
+    branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
 
@@ -28,7 +28,7 @@ jobs:
       
       - name: Clean Unneeded Submodules
         run: | 
-          rm -r src/L2/Superchain/
+          rm -r src/L2/
         id: clean
 
       - name: Run Forge build

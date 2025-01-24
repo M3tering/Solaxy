@@ -41,7 +41,7 @@ jobs:
       - name: Run Forge tests
         run: |
           mkdir -p logs
-          forge test -vvv > logs/forge-test-log.txt || true
+          forge test -vvvvv > logs/forge-test-log.txt || true
         id: test
 
       - name: Upload Test Log

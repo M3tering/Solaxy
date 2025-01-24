@@ -59,7 +59,7 @@ contract SolaxyUnitTest is Test {
         assertEq(SLX_address.balance, initialEthBalance, "asset cannot receive ether transfer");
     }
 
-    function testFailNonM3terAccount() public {
+    function test_RevertNonM3terAccount() public {
         vm.expectRevert(ISolaxy.RequiresM3ter.selector);
         SLX.deposit(reserve_amountDeposited, here);
 

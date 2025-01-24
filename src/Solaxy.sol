@@ -5,8 +5,7 @@ import {ISolaxy} from "./interfaces/ISolaxy.sol";
 import {IERC6551Account} from "./interfaces/IERC6551Account.sol";
 import {IERC6551Registry} from "./interfaces/IERC6551Registry.sol";
 import {UD60x18, ud60x18} from "@prb/math@4.1.0/src/UD60x18.sol";
-import {ERC20} from "@openzeppelin/contracts@5.2.0/token/ERC20/ERC20.sol";
-import {ERC20Permit} from "@openzeppelin/contracts@5.2.0/token/ERC20/extensions/ERC20Permit.sol";
+import {ERC20Permit, ERC20} from "@openzeppelin/contracts@5.2.0/token/ERC20/extensions/ERC20Permit.sol";
 import {ERC20FlashMint} from "@openzeppelin/contracts@5.2.0/token/ERC20/extensions/ERC20FlashMint.sol";
 
 /**

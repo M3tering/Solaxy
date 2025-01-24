@@ -2,11 +2,9 @@
 pragma solidity ^0.8.19;
 
 import {Test} from "forge-std/Test.sol";
-import {Solaxy} from "../src/Solaxy.sol";
-import {ISolaxy} from "../src/interfaces/ISolaxy.sol";
-import {IERC6551Registry} from "../src/interfaces/IERC6551Registry.sol";
 import {IERC20} from "@openzeppelin/contracts@5.2.0/interfaces/IERC20.sol";
 import {IERC721} from "@openzeppelin/contracts@5.2.0/interfaces/IERC721.sol";
+import {IERC6551Registry, ISolaxy, Solaxy} from "../src/Solaxy.sol";
 
 contract SolaxyUnitTest is Test {
     Solaxy public SLX;

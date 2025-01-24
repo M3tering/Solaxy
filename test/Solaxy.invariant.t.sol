@@ -1,20 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import {CommonBase} from "forge-std/Base.sol";
-import {StdCheats} from "forge-std/StdCheats.sol";
-import {StdUtils} from "forge-std/StdUtils.sol";
 import {Test} from "forge-std/Test.sol";
-
-import {Solaxy} from "../src/Solaxy.sol";
-import {ISolaxy} from "../src/interfaces/ISolaxy.sol";
-import {IERC6551Registry} from "../src/interfaces/IERC6551Registry.sol";
 import {IERC20} from "@openzeppelin/contracts@5.2.0/interfaces/IERC20.sol";
 import {IERC20Errors} from "@openzeppelin/contracts@5.2.0/interfaces/draft-IERC6093.sol";
+import {IERC6551Registry, ISolaxy, Solaxy} from "../src/Solaxy.sol";
 
 uint256 constant reserve_balanceOneBillion = 1e9 * 1e18;
 
-contract Handler is CommonBase, StdCheats, StdUtils {
+contract Handler is Test {
     Solaxy private immutable SLX;
     IERC20 private immutable RESERVE;
     address private immutable USER;

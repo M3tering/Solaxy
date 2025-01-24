@@ -9,8 +9,8 @@ import {Test} from "forge-std/Test.sol";
 import {Solaxy} from "../src/Solaxy.sol";
 import {ISolaxy} from "../src/interfaces/ISolaxy.sol";
 import {IERC6551Registry} from "../src/interfaces/IERC6551Registry.sol";
-import {IERC20Errors} from "@openzeppelin/contracts@5.2.0/interfaces/draft-IERC6093.sol";
 import {IERC20} from "@openzeppelin/contracts@5.2.0/interfaces/IERC20.sol";
+import {IERC20Errors} from "@openzeppelin/contracts@5.2.0/interfaces/draft-IERC6093.sol";
 
 uint256 constant reserve_balanceOneBillion = 1e9 * 1e18;
 
@@ -20,7 +20,7 @@ contract Handler is CommonBase, StdCheats, StdUtils {
     address private immutable USER;
 
     constructor(Solaxy slx, IERC20 reserve, address user) {
-        (SLX , RESERVE, USER) = (slx, reserve, user);
+        (SLX, RESERVE, USER) = (slx, reserve, user);
         vm.prank(user);
         RESERVE.approve(address(slx), reserve_balanceOneBillion); // approve user
     }
@@ -87,17 +87,16 @@ contract SolaxyInvarantTest is Test {
         uint256 solaxyTVL = reserve_balanceOneBillion - reserve_balanceAfterTest;
         assertEq(SLX.totalAssets(), solaxyTVL, "Total value locked should be strictly equal to total reserve assets");
 
-        uint256 totalFees = SLX.balanceOf(SLX.tipAccount());
-        uint256 totalHoldings = SLX.balanceOf(user);
         assertEq(
             SLX.totalSupply(),
-            totalHoldings + totalFees,
+            SLX.balanceOf(user) + SLX.balanceOf(SLX.tipAccount()),
             "Total user holdings plus all fees collected should be strictly equal to the total token supply"
         );
 
-        assertGe(
+        assertApproxEqAbs(
             SLX.totalAssets() + 1 wei,
             SLX.convertToAssets(SLX.totalSupply()),
+            1,
             "Total reserve assets must be enough to cover the conversion of all existing tokens with a margin of error of only 1e-18 reserve"
         );
     }

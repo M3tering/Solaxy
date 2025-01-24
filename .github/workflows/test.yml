@@ -41,12 +41,12 @@ jobs:
       - name: Run Forge tests
         run: |
           mkdir -p logs
-          forge test -vvv --json > logs/forge-test-log.json || true
+          forge test -vvv > logs/forge-test-log.txt || true
         id: test
 
       - name: Upload Test Log
         uses: actions/upload-artifact@v4
         with:
           name: forge-test-log
-          path: logs/forge-test-log.json
+          path: logs/forge-test-log.txt
           overwrite: true

@@ -38,12 +38,12 @@ contract SolaxyUnitTest is Test {
         // ERC6551@v0.3.1 Registry contract & Implementation Proxy addresses respectively
         // Note that account wouldn't work as expected unless deployed and properly initialized (if proxy)
         user = IERC6551Registry(0x000000006551c19487814612e58FE06813775758).account(
-            0x780e323E6120a0b4A47089f6395a0B809d8C2845, 0x0, 1, SLX.M3TER(), 0 // vm.randomUint()
+            0x780e323E6120a0b4A47089f6395a0B809d8C2845, 0x0, 1, SLX.M3TER(), 0
         );
 
         deal(reserve_address, user, reserve_balanceOneMillion, true); // deal user
         vm.prank(user);
-        reserve.approve(SLX_address, reserve_balanceOneMillion);  // approve user
+        reserve.approve(SLX_address, reserve_balanceOneMillion); // approve user
     }
 
     function testInitialBalanceWithNewSolaxyContract() public view {

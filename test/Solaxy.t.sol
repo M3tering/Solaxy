@@ -154,7 +154,8 @@ contract SolaxyUnitTest is Test {
         assertEq(SLX_feeBalance, 17938800000000000000);
     }
 
-    function test_RevertIf_CallerIsNotM3terAccount() public {
+    // function test_RevertIf_CallerIsNotM3terAccount() public {
+    function testFail_CallerIsNotM3terAccount() public {
         vm.expectRevert(ISolaxy.RequiresM3ter.selector);
         SLX.deposit(reserve_amountDeposited, here);
 

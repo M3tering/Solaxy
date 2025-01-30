@@ -271,10 +271,9 @@ contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
 
     /**
      * @dev Deposit/mint common workflow.
-     * Critical logic with external calls and is nonReentrant
+     * Critical logic with external calls and is non-reentrant
      */
     function _deposit(address receiver, uint256 assets, uint256 shares) private nonReentrant {
-        if (receiver == address(0)) revert CannotBeZero();
         uint256 initialReserveBalance = RESERVE.balanceOf(address(this));
         uint256 initialAssetBalance = RESERVE.balanceOf(receiver);
         uint256 initialReceiverBalance = balanceOf(receiver);
@@ -283,22 +282,22 @@ contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
         RESERVE.safeTransferFrom(msg.sender, address(this), assets);
         _mint(receiver, shares);
         if (
-            balanceOf(receiver) != initialReceiverBalance + shares || totalSupply() != initialTotalSupply + shares
-                || RESERVE.balanceOf(receiver) != initialAssetBalance - assets
-                || RESERVE.balanceOf(address(this)) != initialReserveBalance + assets
+            totalSupply() != initialTotalSupply + shares // supply balance consistent?
+                || balanceOf(receiver) != initialReceiverBalance + shares // receiver balance consistent?
+                || RESERVE.balanceOf(receiver) != initialAssetBalance - assets // asset balance consistent?
+                || RESERVE.balanceOf(address(this)) != initialReserveBalance + assets // reserve balance consistent?
         ) revert InconsistentBalances();
         emit Deposit(msg.sender, receiver, assets, shares);
     }
 
     /**
      * @dev Withdraw/redeem common workflow.
-     * Critical logic with external calls and is nonReentrant
+     * Critical logic with external calls and is non-reentrant
      */
     function _withdraw(address receiver, address owner, uint256 assets, uint256 shares, uint256 tip)
         private
         nonReentrant
     {
-        if (receiver == address(0) || owner == address(0)) revert CannotBeZero();
         if (totalAssets() < assets || totalSupply() < shares) revert Undersupply();
         uint256 initialReserveBalance = RESERVE.balanceOf(address(this));
         uint256 initialAssetBalance = RESERVE.balanceOf(receiver);
@@ -310,9 +309,10 @@ contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
         _transfer(owner, tipAccount(), tip);
         RESERVE.safeTransfer(receiver, assets);
         if (
-            balanceOf(owner) != initialOwnerBalance - (shares + tip) || totalSupply() != initialTotalSupply - shares
-                || RESERVE.balanceOf(address(this)) != initialReserveBalance - assets
-                || RESERVE.balanceOf(receiver) != initialAssetBalance + assets
+            totalSupply() != initialTotalSupply - shares // supply balance consistent?
+                || balanceOf(owner) != initialOwnerBalance - (shares + tip) // owner balance consistent?
+                || RESERVE.balanceOf(receiver) != initialAssetBalance + assets // asset balance consistent?
+                || RESERVE.balanceOf(address(this)) != initialReserveBalance - assets // reserve balance consistent?
         ) revert InconsistentBalances();
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }

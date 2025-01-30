@@ -2,7 +2,7 @@ name: test
 
 on: 
   push:
-    branches: [ "main" ]
+    branches: [ "dev-2.0" ]
   pull_request:
     branches: [ "main" ]
 
@@ -18,18 +18,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1.3.1
         with:
           version: stable
-      
-      - name: Clean Unneeded Submodules
-        run: | 
-          rm -r src/L2/
-        id: clean
 
       - name: Run Forge build
         run: |

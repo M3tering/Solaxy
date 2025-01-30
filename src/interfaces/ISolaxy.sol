@@ -7,8 +7,8 @@ interface ISolaxy is IERC4626 {
     error Undersupply();
     error CannotBeZero();
     error SlippageError();
-    error TransferError();
     error RequiresM3ter();
+    error InconsistentBalances();
 
     function safeDeposit(uint256 assets, address receiver, uint256 minSharesOut) external returns (uint256 shares);
 

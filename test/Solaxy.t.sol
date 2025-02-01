@@ -102,7 +102,7 @@ contract SolaxyUnitTest is Test {
         assertEq(SLX_feeBalance, 17950000000000000000);
     }
 
-    function test_M3terAccountCanMintAndRedeem() public {
+    function test_M3terHolderCanMintAndRedeem() public {
         dealERC721(address(SLX.M3TER()), here, 0);
         uint256 SLX_initialBalance = SLX.balanceOf(here);
         uint256 totalAssetsInitial = SLX.totalAssets();

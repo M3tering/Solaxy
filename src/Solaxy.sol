@@ -20,7 +20,7 @@ contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
     using SafeERC20 for ERC20;
 
     ERC20 public constant RESERVE = ERC20(0x6B175474E89094C44Da98b954EedeAC495271d0F); // ToDo: use asset L1 contract address
-    IERC721 public constant M3TER = IERC721(0xb8118dBa15CB4b5F6b052c152a843cb3e89D29C7); // ToDo: use m3ter L1 contract address
+    IERC721 public constant M3TER = IERC721(0x9C8fF314C9Bc7F6e59A9d9225Fb22946427eDC03); // ToDo: use m3ter L1 contract address
     UD60x18 public constant SEMI_SLOPE = UD60x18.wrap(0.0000125e18);
 
     constructor() ERC20("Solaxy", "SLX") ERC20Permit("Solaxy") {}

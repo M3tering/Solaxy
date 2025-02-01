@@ -254,12 +254,11 @@ contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
      * Critical logic with external calls and is non-reentrant
      */
     function _deposit(address receiver, uint256 assets, uint256 shares) private nonReentrant {
-        uint256 initialTotalAssets = totalAssets();
-        uint256 initialTotalShares = totalSupply();
+        (uint256 initialAssets, uint256 initialShares) = (totalAssets(), totalSupply());
 
         RESERVE.safeTransferFrom(msg.sender, address(this), assets);
         _mint(receiver, shares);
-        if (totalSupply() != initialTotalShares + shares || totalAssets() != initialTotalAssets + assets) {
+        if (totalAssets() != initialAssets + assets || totalSupply() != initialShares + shares) {
             revert InconsistentBalances();
         }
 
@@ -275,8 +274,7 @@ contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
         nonReentrant
     {
         if (totalAssets() < assets || totalSupply() < shares) revert Undersupply();
-        uint256 initialAssets = totalAssets();
-        uint256 initialShares = totalSupply();
+        (uint256 initialAssets, uint256 initialShares) = (totalAssets(), totalSupply());
 
         if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares + tip);
         RESERVE.safeTransfer(receiver, assets);

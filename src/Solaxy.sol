@@ -258,10 +258,10 @@ contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
 
         RESERVE.safeTransferFrom(msg.sender, address(this), assets);
         _mint(receiver, shares);
+
         if (totalAssets() != initialAssets + assets || totalSupply() != initialShares + shares) {
             revert InconsistentBalances();
         }
-
         emit Deposit(msg.sender, receiver, assets, shares);
     }
 
@@ -273,17 +273,16 @@ contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
         private
         nonReentrant
     {
-        if (totalAssets() < assets || totalSupply() < shares) revert Undersupply();
         (uint256 initialAssets, uint256 initialShares) = (totalAssets(), totalSupply());
+        RESERVE.safeTransfer(receiver, assets);
 
         if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares + tip);
-        RESERVE.safeTransfer(receiver, assets);
-        _burn(owner, shares);
         _transfer(owner, tipAccount(), tip);
+        _burn(owner, shares);
+
         if (totalAssets() != initialAssets - assets || totalSupply() != initialShares - shares) {
             revert InconsistentBalances();
         }
-
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
 

@@ -74,13 +74,13 @@ contract SolaxyInvarantTest is Test {
     }
 
     function invariantValuation() public view {
-        uint256 reserve_balanceAfterTest = RESERVE.balanceOf(here);
+        uint256 reserve_balanceAfterTest = RESERVE.balanceOf(handlerAddress);
         uint256 solaxyTVL = reserve_balanceOneBillion - reserve_balanceAfterTest;
         assertEq(SLX.totalAssets(), solaxyTVL, "Total value locked should be strictly equal to total reserve assets");
 
         assertEq(
             SLX.totalSupply(),
-            SLX.balanceOf(here) + SLX.balanceOf(SLX.tipAccount()),
+            SLX.balanceOf(handlerAddress) + SLX.balanceOf(SLX.tipAccount()),
             "Total handler holdings plus all fees collected should be strictly equal to the total token supply"
         );
 

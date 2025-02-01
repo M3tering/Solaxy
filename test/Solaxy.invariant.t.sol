@@ -70,7 +70,7 @@ contract SolaxyInvarantTest is Test {
     function invariantValuation() public view {
         assertEq(
             SLX.totalAssets(),
-            RESERVE.balanceOf(handlerAddress) - reserve_balanceOneBillion,
+            reserve_balanceOneBillion - RESERVE.balanceOf(handlerAddress),
             "Total value locked should be strictly equal to total reserve assets"
         );
 

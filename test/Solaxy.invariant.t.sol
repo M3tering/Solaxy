@@ -48,27 +48,25 @@ contract Handler is Test {
 }
 
 contract SolaxyInvarantTest is Test {
-    address public reserve_address;
     Handler public handler;
     IERC20 public RESERVE;
     Solaxy public SLX;
-    address public here;
+    address public RESERVE_address;
     address public handlerAddress;
 
     function setUp() public {
         string memory url = vm.rpcUrl("ethereum-mainnet");
         vm.createSelectFork(url);
-        here = address(this);
 
         SLX = new Solaxy();
-        reserve_address = SLX.asset();
-        RESERVE = IERC20(reserve_address);
+        RESERVE_address = SLX.asset();
+        RESERVE = IERC20(RESERVE_address);
 
 
         handler = new Handler(SLX, RESERVE);
         handlerAddress = address(handler);
 
-        deal(reserve_address, here, reserve_balanceOneBillion, true);
+        deal(RESERVE_address, handlerAddress, reserve_balanceOneBillion, true);
         dealERC721(address(SLX.M3TER()), handlerAddress, 0);
         targetContract(handlerAddress);
     }

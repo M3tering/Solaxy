@@ -10,7 +10,7 @@ contract SolaxyUnitTest is Test {
     IERC20 public RESERVE;
     address public here;
     address public SLX_address;
-    address public reserve_address;
+    address public RESERVE_address;
     uint256 public constant SLX_amountIn = 67.95e18;
     uint256 public constant SLX_amountMinted = 100e18;
     uint256 public constant SLX_amountBurned = 50e18;
@@ -26,10 +26,10 @@ contract SolaxyUnitTest is Test {
         SLX = new Solaxy();
         SLX_address = address(SLX);
 
-        reserve_address = SLX.asset();
-        RESERVE = IERC20(reserve_address);
+        RESERVE_address = SLX.asset();
+        RESERVE = IERC20(RESERVE_address);
 
-        deal(reserve_address, here, totalAssetsOneMillion, true);
+        deal(RESERVE_address, here, totalAssetsOneMillion, true);
         RESERVE.approve(SLX_address, totalAssetsOneMillion);
     }
 

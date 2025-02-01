@@ -2,9 +2,9 @@
 pragma solidity ^0.8.24;
 
 import {ISolaxy} from "./interfaces/ISolaxy.sol";
-import {IERC6551Account} from "./interfaces/IERC6551Account.sol";
 import {IERC6551Registry} from "./interfaces/IERC6551Registry.sol";
 import {UD60x18, ud60x18} from "@prb/math@4.1.0/src/UD60x18.sol";
+import {IERC721} from "@openzeppelin/contracts@5.2.0/interfaces/IERC721.sol";
 import {ERC20Permit, ERC20} from "@openzeppelin/contracts@5.2.0/token/ERC20/extensions/ERC20Permit.sol";
 import {SafeERC20} from "@openzeppelin/contracts@5.2.0/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts@5.2.0/utils/ReentrancyGuard.sol";
@@ -19,43 +19,31 @@ import {ReentrancyGuard} from "@openzeppelin/contracts@5.2.0/utils/ReentrancyGua
 contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
     using SafeERC20 for ERC20;
 
-    UD60x18 public constant SEMI_SLOPE = UD60x18.wrap(0.0000125e18);
-    address public constant M3TER = 0xb8118dBa15CB4b5F6b052c152a843cb3e89D29C7; // ToDo: use m3ter L1 contract address
     ERC20 public constant RESERVE = ERC20(0x6B175474E89094C44Da98b954EedeAC495271d0F); // ToDo: use asset L1 contract address
-
-    modifier onlyM3terAccount(address account) {
-        (uint256 chainId, address tokenContract, uint256 tokenId) = IERC6551Account(account).token();
-        if (tokenContract != M3TER || chainId != block.chainid) revert RequiresM3ter();
-        _;
-    }
+    IERC721 public constant M3TER = IERC721(0xb8118dBa15CB4b5F6b052c152a843cb3e89D29C7); // ToDo: use m3ter L1 contract address
+    UD60x18 public constant SEMI_SLOPE = UD60x18.wrap(0.0000125e18);
 
     constructor() ERC20("Solaxy", "SLX") ERC20Permit("Solaxy") {}
 
-    function deposit(uint256 assets, address receiver) external onlyM3terAccount(receiver) returns (uint256 shares) {
+    function deposit(uint256 assets, address receiver) external returns (uint256 shares) {
+        if (M3TER.balanceOf(receiver) < 1) revert RequiresM3ter();
         shares = computeDeposit(assets, totalSupply());
         _deposit(receiver, assets, shares);
     }
 
-    function withdraw(uint256 assets, address receiver, address owner)
-        external
-        onlyM3terAccount(receiver)
-        returns (uint256 shares)
-    {
+    function withdraw(uint256 assets, address receiver, address owner) external returns (uint256 shares) {
         uint256 tip;
         (shares, tip) = computeWithdraw(assets, totalSupply());
         _withdraw(receiver, owner, assets, shares, tip);
     }
 
-    function mint(uint256 shares, address receiver) external onlyM3terAccount(receiver) returns (uint256 assets) {
+    function mint(uint256 shares, address receiver) external returns (uint256 assets) {
+        if (M3TER.balanceOf(receiver) < 1) revert RequiresM3ter();
         assets = computeMint(shares, totalSupply());
         _deposit(receiver, assets, shares);
     }
 
-    function redeem(uint256 shares, address receiver, address owner)
-        external
-        onlyM3terAccount(receiver)
-        returns (uint256 assets)
-    {
+    function redeem(uint256 shares, address receiver, address owner) external returns (uint256 assets) {
         uint256 tip;
         (shares, assets, tip) = computeRedeem(shares, totalSupply());
         _withdraw(receiver, owner, assets, shares, tip);
@@ -65,11 +53,8 @@ contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
      * @dev Implements {IERC4626-deposit} and protects against slippage by specifying a minimum number of shares to receive.
      * @param minSharesOut The minimum number of shares the sender expects to receive.
      */
-    function safeDeposit(uint256 assets, address receiver, uint256 minSharesOut)
-        external
-        onlyM3terAccount(receiver)
-        returns (uint256 shares)
-    {
+    function safeDeposit(uint256 assets, address receiver, uint256 minSharesOut) external returns (uint256 shares) {
+        if (M3TER.balanceOf(receiver) < 1) revert RequiresM3ter();
         shares = computeDeposit(assets, totalSupply());
         if (shares < minSharesOut) revert SlippageError();
         _deposit(receiver, assets, shares);
@@ -81,7 +66,6 @@ contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
      */
     function safeWithdraw(uint256 assets, address receiver, address owner, uint256 maxSharesIn)
         external
-        onlyM3terAccount(receiver)
         returns (uint256 shares)
     {
         uint256 tip;
@@ -94,11 +78,8 @@ contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
      * @dev Implements {IERC4626-deposit} and protects against slippage by specifying a maximum amount of assets to deposit.
      * @param maxAssetsIn The maximum amount of assets the sender is willing to deposit.
      */
-    function safeMint(uint256 shares, address receiver, uint256 maxAssetsIn)
-        external
-        onlyM3terAccount(receiver)
-        returns (uint256 assets)
-    {
+    function safeMint(uint256 shares, address receiver, uint256 maxAssetsIn) external returns (uint256 assets) {
+        if (M3TER.balanceOf(receiver) < 1) revert RequiresM3ter();
         assets = computeMint(shares, totalSupply());
         if (assets > maxAssetsIn) revert SlippageError();
         _deposit(receiver, assets, shares);
@@ -110,7 +91,6 @@ contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
      */
     function safeRedeem(uint256 shares, address receiver, address owner, uint256 minAssetsOut)
         external
-        onlyM3terAccount(receiver)
         returns (uint256 assets)
     {
         uint256 tip;
@@ -265,7 +245,7 @@ contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
     function tipAccount() public view returns (address) {
         // ERC6551@v0.3.1 Registry contract & Implementation Proxy addresses respectively
         return IERC6551Registry(0x000000006551c19487814612e58FE06813775758).account(
-            0x55266d75D1a14E4572138116aF39863Ed6596E7F, 0x0, 1, M3TER, 0
+            0x55266d75D1a14E4572138116aF39863Ed6596E7F, 0x0, 1, address(M3TER), 0
         );
     }
 
@@ -274,18 +254,18 @@ contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
      * Critical logic with external calls and is non-reentrant
      */
     function _deposit(address receiver, uint256 assets, uint256 shares) private nonReentrant {
-        uint256 initialReserveBalance = RESERVE.balanceOf(address(this));
         uint256 initialAssetBalance = RESERVE.balanceOf(receiver);
         uint256 initialReceiverBalance = balanceOf(receiver);
-        uint256 initialTotalSupply = totalSupply();
+        uint256 initialTotalAssets = totalAssets();
+        uint256 initialTotalShares = totalSupply();
 
         RESERVE.safeTransferFrom(msg.sender, address(this), assets);
         _mint(receiver, shares);
         if (
-            totalSupply() != initialTotalSupply + shares // supply balance consistent?
+            totalSupply() != initialTotalShares + shares // supply balance consistent?
+                || totalAssets() != initialTotalAssets + assets // reserve balance consistent?
                 || balanceOf(receiver) != initialReceiverBalance + shares // receiver balance consistent?
                 || RESERVE.balanceOf(receiver) != initialAssetBalance - assets // asset balance consistent?
-                || RESERVE.balanceOf(address(this)) != initialReserveBalance + assets // reserve balance consistent?
         ) revert InconsistentBalances();
         emit Deposit(msg.sender, receiver, assets, shares);
     }
@@ -299,20 +279,20 @@ contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
         nonReentrant
     {
         if (totalAssets() < assets || totalSupply() < shares) revert Undersupply();
-        uint256 initialReserveBalance = RESERVE.balanceOf(address(this));
         uint256 initialAssetBalance = RESERVE.balanceOf(receiver);
         uint256 initialOwnerBalance = balanceOf(owner);
-        uint256 initialTotalSupply = totalSupply();
+        uint256 initialTotalAssets = totalAssets();
+        uint256 initialTotalShares = totalSupply();
 
         if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares + tip);
         _burn(owner, shares);
         _transfer(owner, tipAccount(), tip);
         RESERVE.safeTransfer(receiver, assets);
         if (
-            totalSupply() != initialTotalSupply - shares // supply balance consistent?
+            totalSupply() != initialTotalShares - shares // supply balance consistent?
+                || totalAssets() != initialTotalAssets - assets // reserve balance consistent?
                 || balanceOf(owner) != initialOwnerBalance - (shares + tip) // owner balance consistent?
                 || RESERVE.balanceOf(receiver) != initialAssetBalance + assets // asset balance consistent?
-                || RESERVE.balanceOf(address(this)) != initialReserveBalance - assets // reserve balance consistent?
         ) revert InconsistentBalances();
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }

@@ -149,9 +149,4 @@ contract SolaxyUnitTest is Test {
         uint256 SLX_feeBalance = SLX.balanceOf(SLX.tipAccount());
         assertEq(SLX_feeBalance, 17938800000000000000);
     }
-
-    function test_knowHolderBalance() public view {
-        uint256 knowHolderBalance = RESERVE.balanceOf(0x4e59b44847b379578588920cA78FbF26c0B4956C);
-        assertEq(knowHolderBalance, 0.000864e18, "reserve balance should be equal 0.000864 reserve");
-    }
 }

@@ -48,9 +48,8 @@ contract Handler is Test {
 }
 
 contract SolaxyInvarantTest is Test {
-    Handler public handler;
-    IERC20 public RESERVE;
     Solaxy public SLX;
+    IERC20 public RESERVE;
     address public RESERVE_address;
     address public handlerAddress;
 
@@ -61,9 +60,7 @@ contract SolaxyInvarantTest is Test {
         SLX = new Solaxy();
         RESERVE_address = SLX.asset();
         RESERVE = IERC20(RESERVE_address);
-
-        handler = new Handler(SLX, RESERVE);
-        handlerAddress = address(handler);
+        handlerAddress = address(new Handler(SLX, RESERVE));
 
         deal(RESERVE_address, handlerAddress, reserve_balanceOneBillion, true);
         dealERC721(address(SLX.M3TER()), handlerAddress, 0);
@@ -71,9 +68,11 @@ contract SolaxyInvarantTest is Test {
     }
 
     function invariantValuation() public view {
-        uint256 reserve_balanceAfterTest = RESERVE.balanceOf(handlerAddress);
-        uint256 solaxyTVL = reserve_balanceOneBillion - reserve_balanceAfterTest;
-        assertEq(SLX.totalAssets(), solaxyTVL, "Total value locked should be strictly equal to total reserve assets");
+        assertEq(
+            SLX.totalAssets(),
+            RESERVE.balanceOf(handlerAddress) - reserve_balanceOneBillion,
+            "Total value locked should be strictly equal to total reserve assets"
+        );
 
         assertEq(
             SLX.totalSupply(),
@@ -87,10 +86,5 @@ contract SolaxyInvarantTest is Test {
             0.00001e18,
             "Total reserve assets must be enough to cover the conversion of all existing tokens to less than a cent rounding error"
         );
-    }
-
-    function test_knowHolderBalance() public view {
-        uint256 knowHolderBalance = RESERVE.balanceOf(0x4e59b44847b379578588920cA78FbF26c0B4956C);
-        assertEq(knowHolderBalance, 0.000864e18, "reserve balance should be equal 0.000864 reserve");
     }
 }

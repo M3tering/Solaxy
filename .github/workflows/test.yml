@@ -33,5 +33,5 @@ jobs:
 
       - name: Run Forge tests
         run: |
-          forge test -vvvvv
+          forge test -vvvv
         id: test

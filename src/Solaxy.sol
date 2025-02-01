@@ -254,19 +254,15 @@ contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
      * Critical logic with external calls and is non-reentrant
      */
     function _deposit(address receiver, uint256 assets, uint256 shares) private nonReentrant {
-        uint256 initialAssetBalance = RESERVE.balanceOf(receiver);
-        uint256 initialReceiverBalance = balanceOf(receiver);
         uint256 initialTotalAssets = totalAssets();
         uint256 initialTotalShares = totalSupply();
 
         RESERVE.safeTransferFrom(msg.sender, address(this), assets);
         _mint(receiver, shares);
-        if (
-            totalSupply() != initialTotalShares + shares // supply balance consistent?
-                || totalAssets() != initialTotalAssets + assets // reserve balance consistent?
-                || balanceOf(receiver) != initialReceiverBalance + shares // receiver balance consistent?
-                || RESERVE.balanceOf(receiver) != initialAssetBalance - assets // asset balance consistent?
-        ) revert InconsistentBalances();
+        if (totalSupply() != initialTotalShares + shares || totalAssets() != initialTotalAssets + assets) {
+            revert InconsistentBalances();
+        }
+
         emit Deposit(msg.sender, receiver, assets, shares);
     }
 
@@ -279,21 +275,17 @@ contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
         nonReentrant
     {
         if (totalAssets() < assets || totalSupply() < shares) revert Undersupply();
-        uint256 initialAssetBalance = RESERVE.balanceOf(receiver);
-        uint256 initialOwnerBalance = balanceOf(owner);
-        uint256 initialTotalAssets = totalAssets();
-        uint256 initialTotalShares = totalSupply();
+        uint256 initialAssets = totalAssets();
+        uint256 initialShares = totalSupply();
 
         if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares + tip);
+        RESERVE.safeTransfer(receiver, assets);
         _burn(owner, shares);
         _transfer(owner, tipAccount(), tip);
-        RESERVE.safeTransfer(receiver, assets);
-        if (
-            totalSupply() != initialTotalShares - shares // supply balance consistent?
-                || totalAssets() != initialTotalAssets - assets // reserve balance consistent?
-                || balanceOf(owner) != initialOwnerBalance - (shares + tip) // owner balance consistent?
-                || RESERVE.balanceOf(receiver) != initialAssetBalance + assets // asset balance consistent?
-        ) revert InconsistentBalances();
+        if (totalAssets() != initialAssets - assets || totalSupply() != initialShares - shares) {
+            revert InconsistentBalances();
+        }
+
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
 

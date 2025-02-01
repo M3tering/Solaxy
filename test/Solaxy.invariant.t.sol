@@ -62,7 +62,6 @@ contract SolaxyInvarantTest is Test {
         RESERVE_address = SLX.asset();
         RESERVE = IERC20(RESERVE_address);
 
-
         handler = new Handler(SLX, RESERVE);
         handlerAddress = address(handler);
 

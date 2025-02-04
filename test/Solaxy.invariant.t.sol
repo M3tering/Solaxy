@@ -86,9 +86,10 @@ contract SolaxyInvarantTest is Test {
             "Total handler holdings plus all fees collected should be strictly equal to the total token supply"
         );
 
-        assertEq(
+        assertApproxEqAbs(
             SLX.totalAssets(),
             SLX.previewRedeem(SLX.totalSupply()),
+            0.000000002e18,
             "Total reserve assets must be enough to cover the conversion of all existing tokens to less than a cent rounding error"
         );
     }

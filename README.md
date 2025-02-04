@@ -9,7 +9,7 @@ A token bonding curve is a mathematical formula that defines the token's price b
 The price of tokens in a linear bonding curve is calculated as follows: 
 $$f(x) = mx + c$$ 
 
-Here, the slope (`m`) represents the rate at which the price changes concerning the supply. In Solaxy's case, the slope is set to 25 bps (`0.0025`), determining the curve's steepness. Visit the [gitbook docs](https://m3tering.whynotswitch.com/token-economics/mint-and-distribution) to learn more.
+Here, the slope (`m`) represents the rate at which the price changes concerning the supply. In Solaxy's case, the slope is set to `0.000025`, determining the curve's steepness. Visit the [gitbook docs](https://m3tering.whynotswitch.com/token-economics/mint-and-distribution) to learn more.
 
 ![Example Linear Bonding Curve](https://4273338628-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FlwEv5vD8Hcwor1O24YXn%2Fuploads%2FznFLXSpiB1QKyCcGpR3m%2Fimage.png?alt=media&token=e305dc82-346f-445d-9afb-4cfe2b10f209)
 
@@ -33,18 +33,23 @@ Read our Contribution Guidelines for details. Join us in making Solaxy better!
 ### Project Layout
 The project is filed in the following directory structure:
 ```
-├── lib/                 # Project dependencies stored as git submodules
+├── dependencies/       # Project dependencies stored 
 ├── script/              # Foundry testing scripts
 ├── src/                 # Contains the Solidity smart contract files
 │   ├── Interfaces/      # Contract interfaces for Solaxy
 ├── test/                # Solidity tests for Foundry
 ```
 
+### How to Install Dependencies
+Soldeer is used for managing and installing the dependencies for this repo, rather that the default Foundry approach of using git submodules. Simply run `forge soldeer install` to stepup any missing dependencies. See [Foundry book](https://book.getfoundry.sh/projects/soldeer).
+
 ### How to Run Tests
 1. Ensure you have Foundry installed: See [Foundry book](https://book.getfoundry.sh/getting-started/installation)
 1. Download or clone the project repository
 1. Navigate to the project directory in your terminal.
-1. Run `forge test -vvv` to execute tests on a fork of IoTeX mainnet, 
+1. Install all dependencies: See my section on 
+ [How to Install Dependencies](#how-to-install-dependencies)
+1. Run `forge test -vvv` to execute tests on a fork of Ethereum mainnet, 
 
 ### License
 This project is licensed under the [MIT License](README.md).

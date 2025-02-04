@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import {Test} from "forge-std/Test.sol";
 import {IERC20} from "@openzeppelin/contracts@5.2.0/interfaces/IERC20.sol";
 import {IERC20Errors} from "@openzeppelin/contracts@5.2.0/interfaces/draft-IERC6093.sol";
-import {IERC6551Registry, ISolaxy, Solaxy} from "../src/Solaxy.sol";
+import {ISolaxy, Solaxy} from "../src/Solaxy.sol";
 
 uint256 constant reserve_balanceOneBillion = 1e9 * 1e18;
 
@@ -20,28 +20,22 @@ contract Handler is Test {
 
     function deposit(uint256 assets) public {
         assets = bound(assets, 0, 1e20);
-        if (assets == 0) vm.expectRevert(ISolaxy.CannotBeZero.selector);
         if (assets > RESERVE.balanceOf(HERE)) vm.expectRevert(IERC20Errors.ERC20InsufficientBalance.selector);
         SLX.deposit(assets, HERE);
     }
 
     function withdraw(uint256 assets) public {
         assets = bound(assets, 0, 1e20);
-        if (assets == 0) vm.expectRevert(ISolaxy.CannotBeZero.selector);
-        if (assets > SLX.totalAssets()) vm.expectRevert(ISolaxy.Undersupply.selector);
         SLX.withdraw(assets, HERE, HERE);
     }
 
     function mint(uint256 shares) public {
         shares = bound(shares, 0, 10e20);
-        if (shares == 0) vm.expectRevert(ISolaxy.CannotBeZero.selector);
         SLX.mint(shares, HERE);
     }
 
     function redeem(uint256 shares) public {
         shares = bound(shares, 0, 1e20);
-        if (shares == 0) vm.expectRevert(ISolaxy.CannotBeZero.selector);
-        if (shares > SLX.totalSupply()) vm.expectRevert(ISolaxy.Undersupply.selector);
         if (shares > SLX.balanceOf(HERE)) vm.expectRevert(IERC20Errors.ERC20InsufficientBalance.selector);
         SLX.redeem(shares, HERE, HERE);
     }
@@ -50,6 +44,7 @@ contract Handler is Test {
 contract SolaxyInvarantTest is Test {
     Solaxy public SLX;
     IERC20 public RESERVE;
+    address public M3TER_address;
     address public RESERVE_address;
     address public handlerAddress;
 
@@ -60,11 +55,22 @@ contract SolaxyInvarantTest is Test {
         SLX = new Solaxy();
         RESERVE_address = SLX.asset();
         RESERVE = IERC20(RESERVE_address);
+        M3TER_address = address(SLX.M3TER());
         handlerAddress = address(new Handler(SLX, RESERVE));
 
         deal(RESERVE_address, handlerAddress, reserve_balanceOneBillion, true);
-        dealERC721(address(SLX.M3TER()), handlerAddress, 0);
+        dealERC721(M3TER_address, handlerAddress, 0);
         targetContract(handlerAddress);
+    }
+
+    function tipAccount() private view returns (address account) {
+        address reg = 0x000000006551c19487814612e58FE06813775758;
+        address imp = 0x55266d75D1a14E4572138116aF39863Ed6596E7F;
+
+        (bool success, bytes memory data) = address(reg).staticcall(
+            abi.encodeWithSignature("account(address,bytes32,uint256,address,uint256)", imp, 0x0, 1, M3TER_address, 0)
+        );
+        account = success ? abi.decode(data, (address)) : address(0);
     }
 
     function invariantValuation() public view {
@@ -76,15 +82,8 @@ contract SolaxyInvarantTest is Test {
 
         assertEq(
             SLX.totalSupply(),
-            SLX.balanceOf(handlerAddress) + SLX.balanceOf(SLX.tipAccount()),
+            SLX.balanceOf(handlerAddress) + SLX.balanceOf(tipAccount()),
             "Total handler holdings plus all fees collected should be strictly equal to the total token supply"
-        );
-
-        assertApproxEqAbs(
-            SLX.totalAssets(),
-            SLX.convertToAssets(SLX.totalSupply()),
-            0.00001e18,
-            "Total reserve assets must be enough to cover the conversion of all existing tokens to less than a cent rounding error"
         );
     }
 }

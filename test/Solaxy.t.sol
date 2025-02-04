@@ -106,10 +106,12 @@ contract SolaxyUnitTest is Test {
             totalAssetsAfterDeposit - reserve_amountWithdrawn,
             "reserve balance should increase after withdrawal"
         );
-
-        // Check for fees
-        // uint256 SLX_feeBalance = SLX.balanceOf(tipAccount());
-        // assertEq(SLX_feeBalance, 17950000000000000000);
+        assertApproxEqAbs(
+            SLX.balanceOf(tipAccount()),
+            SLX_amountIn - SLX_amountBurned,
+            0.000000002e18,
+            "tip should be difference between all shares burnt vs shares spent"
+        );
     }
 
     function test_M3terHolderCanMintAndRedeem() public {
@@ -153,9 +155,11 @@ contract SolaxyUnitTest is Test {
             0.00002e18,
             "reserve balance should increase after redeeming"
         );
-
-        // Check for fees
-        // uint256 SLX_feeBalance = SLX.balanceOf(tipAccount());
-        // assertEq(SLX_feeBalance, 17938800000000000000);
+        assertApproxEqAbs(
+            SLX.balanceOf(tipAccount()),
+            SLX_amountIn - SLX_amountBurned,
+            0.000000002e18,
+            "tip should be difference between all shares burnt vs shares spent"
+        );
     }
 }

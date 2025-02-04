@@ -85,5 +85,11 @@ contract SolaxyInvarantTest is Test {
             SLX.balanceOf(handlerAddress) + SLX.balanceOf(tipAccount()),
             "Total handler holdings plus all fees collected should be strictly equal to the total token supply"
         );
+
+        assertEq(
+            SLX.totalAssets(),
+            SLX.previewRedeem(SLX.totalSupply()),
+            "Total reserve assets must be enough to cover the conversion of all existing tokens to less than a cent rounding error"
+        );
     }
 }

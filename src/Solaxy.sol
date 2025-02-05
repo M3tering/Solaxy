@@ -95,22 +95,22 @@ contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
 
     function deposit(uint256 assets, address receiver) public returns (uint256 shares) {
         shares = previewDeposit(assets);
-        _deposit(receiver, assets, shares);
+        _pump(receiver, assets, shares);
     }
 
     function withdraw(uint256 assets, address receiver, address owner) public returns (uint256 shares) {
         shares = previewWithdraw(assets);
-        _withdraw(receiver, owner, assets, shares);
+        _dump(receiver, owner, assets, shares);
     }
 
     function mint(uint256 shares, address receiver) public returns (uint256 assets) {
         assets = previewMint(shares);
-        _deposit(receiver, assets, shares);
+        _pump(receiver, assets, shares);
     }
 
     function redeem(uint256 shares, address receiver, address owner) public returns (uint256 assets) {
         assets = previewRedeem(shares);
-        _withdraw(receiver, owner, assets, shares);
+        _dump(receiver, owner, assets, shares);
     }
 
     function totalAssets() public view returns (uint256 totalManagedAssets) {
@@ -171,7 +171,7 @@ contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
      * @dev Deposit/mint common workflow. Updates vault balances and handles external to reserve asset contract
      * Reverts if vault balances are not consistent with expectations, only handles consistency checks for vault account
      */
-    function _deposit(address receiver, uint256 assets, uint256 shares) private nonReentrant {
+    function _pump(address receiver, uint256 assets, uint256 shares) private nonReentrant {
         (bool success, bytes memory data) = M3TER.staticcall(abi.encodeWithSignature("balanceOf(address)", receiver));
         if (!success || abi.decode(data, (uint256)) < 1) revert RequiresM3ter();
 
@@ -189,7 +189,7 @@ contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
      * @dev Withdraw/redeem common workflow. Updates vault balances and handles external to reserve asset contract
      * Reverts if vault balances are not consistent with expectations, only handles consistency checks for vault account
      */
-    function _withdraw(address receiver, address owner, uint256 assets, uint256 shares) private nonReentrant {
+    function _dump(address receiver, address owner, uint256 assets, uint256 shares) private nonReentrant {
         (uint256 initialAssets, uint256 initialShares) = (totalAssets(), totalSupply());
         uint256 tip = _calculateTip(ud60x18(assets), ud60x18(shares), ud60x18(initialShares)).intoUint256();
         RESERVE.safeTransfer(receiver, assets);

@@ -2,7 +2,6 @@
 pragma solidity ^0.8.24;
 
 import {ISolaxy} from "./interfaces/ISolaxy.sol";
-import {SD1x18, sd1x18} from "@prb/math@4.1.0/src/SD1x18.sol";
 import {UD60x18, ud60x18} from "@prb/math@4.1.0/src/UD60x18.sol";
 import {SafeERC20} from "@openzeppelin/contracts@5.2.0/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts@5.2.0/utils/ReentrancyGuard.sol";
@@ -24,44 +23,13 @@ contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
 
     constructor() ERC20("Solaxy", "SLX") ERC20Permit("Solaxy") {}
 
-    modifier onlyM3terHeads(address receiver) {
-        (bool success, bytes memory data) = M3TER.staticcall(abi.encodeWithSignature("balanceOf(address)", receiver));
-        if (!success || uint256(bytes32(data)) < 1) revert RequiresM3ter();
-        _;
-    }
-
-    function deposit(uint256 assets, address receiver) external onlyM3terHeads(receiver) returns (uint256 shares) {
-        shares = previewDeposit(assets);
-        _deposit(receiver, assets, shares);
-    }
-
-    function withdraw(uint256 assets, address receiver, address owner) external returns (uint256 shares) {
-        shares = previewWithdraw(assets);
-        _withdraw(receiver, owner, assets, shares);
-    }
-
-    function mint(uint256 shares, address receiver) external onlyM3terHeads(receiver) returns (uint256 assets) {
-        assets = previewMint(shares);
-        _deposit(receiver, assets, shares);
-    }
-
-    function redeem(uint256 shares, address receiver, address owner) external returns (uint256 assets) {
-        assets = previewRedeem(shares);
-        _withdraw(receiver, owner, assets, shares);
-    }
-
     /**
      * @notice Implements {IERC4626-deposit} and protects against slippage by specifying a minimum number of shares to receive.
      * @param minSharesOut The minimum number of shares the sender expects to receive.
      */
-    function safeDeposit(uint256 assets, address receiver, uint256 minSharesOut)
-        external
-        onlyM3terHeads(receiver)
-        returns (uint256 shares)
-    {
-        shares = previewDeposit(assets);
+    function safeDeposit(uint256 assets, address receiver, uint256 minSharesOut) external returns (uint256 shares) {
+        shares = deposit(assets, receiver);
         if (shares < minSharesOut) revert SlippageError();
-        _deposit(receiver, assets, shares);
     }
 
     /**
@@ -72,23 +40,17 @@ contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
         external
         returns (uint256 shares)
     {
-        shares = previewWithdraw(assets);
+        shares = withdraw(assets, receiver, owner);
         if (shares > maxSharesIn) revert SlippageError();
-        _withdraw(receiver, owner, assets, shares);
     }
 
     /**
      * @notice Implements {IERC4626-deposit} and protects against slippage by specifying a maximum amount of assets to deposit.
      * @param maxAssetsIn The maximum amount of assets the sender is willing to deposit.
      */
-    function safeMint(uint256 shares, address receiver, uint256 maxAssetsIn)
-        external
-        onlyM3terHeads(receiver)
-        returns (uint256 assets)
-    {
-        assets = previewMint(shares);
+    function safeMint(uint256 shares, address receiver, uint256 maxAssetsIn) external returns (uint256 assets) {
+        assets = mint(shares, receiver);
         if (assets > maxAssetsIn) revert SlippageError();
-        _deposit(receiver, assets, shares);
     }
 
     /**
@@ -99,9 +61,8 @@ contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
         external
         returns (uint256 assets)
     {
-        assets = previewRedeem(shares);
+        assets = redeem(shares, receiver, owner);
         if (assets < minAssetsOut) revert SlippageError();
-        _withdraw(receiver, owner, assets, shares);
     }
 
     function convertToShares(uint256 assets) external view returns (uint256 shares) {
@@ -130,6 +91,26 @@ contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
 
     function asset() external pure returns (address assetTokenAddress) {
         return address(RESERVE);
+    }
+
+    function deposit(uint256 assets, address receiver) public returns (uint256 shares) {
+        shares = previewDeposit(assets);
+        _deposit(receiver, assets, shares);
+    }
+
+    function withdraw(uint256 assets, address receiver, address owner) public returns (uint256 shares) {
+        shares = previewWithdraw(assets);
+        _withdraw(receiver, owner, assets, shares);
+    }
+
+    function mint(uint256 shares, address receiver) public returns (uint256 assets) {
+        assets = previewMint(shares);
+        _deposit(receiver, assets, shares);
+    }
+
+    function redeem(uint256 shares, address receiver, address owner) public returns (uint256 assets) {
+        assets = previewRedeem(shares);
+        _withdraw(receiver, owner, assets, shares);
     }
 
     function totalAssets() public view returns (uint256 totalManagedAssets) {
@@ -191,8 +172,10 @@ contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
      * Reverts if vault balances are not consistent with expectations, only handles consistency checks for vault account
      */
     function _deposit(address receiver, uint256 assets, uint256 shares) private nonReentrant {
-        (uint256 initialAssets, uint256 initialShares) = (totalAssets(), totalSupply());
+        (bool success, bytes memory data) = M3TER.staticcall(abi.encodeWithSignature("balanceOf(address)", receiver));
+        if (!success || abi.decode(data, (uint256)) < 1) revert RequiresM3ter();
 
+        (uint256 initialAssets, uint256 initialShares) = (totalAssets(), totalSupply());
         RESERVE.safeTransferFrom(msg.sender, address(this), assets);
         _mint(receiver, shares);
 
@@ -225,13 +208,11 @@ contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
      * @dev Returns ERC6551 account for M3ter 0.
      */
     function _tipAccount() private view returns (address account) {
-        // ERC6551@v0.3.1 Registry contract & Implementation Proxy addresses respectively
-        address ERC6551Registry = 0x000000006551c19487814612e58FE06813775758;
-        address implementation = 0x55266d75D1a14E4572138116aF39863Ed6596E7F;
-        (bool success, bytes memory data) = ERC6551Registry.staticcall(
-            abi.encodeWithSignature(
-                "account(address,bytes32,uint256,address,uint256)", implementation, 0x0, 1, M3TER, 0
-            )
+        address registry = 0x000000006551c19487814612e58FE06813775758; // @ ERC6551 v0.3.1 registry
+        address accImpProxy = 0x55266d75D1a14E4572138116aF39863Ed6596E7F; // @ ERC6551 v0.3.1 account implementation proxy
+
+        (bool success, bytes memory data) = registry.staticcall(
+            abi.encodeWithSignature("account(address,bytes32,uint256,address,uint256)", accImpProxy, 0x0, 1, M3TER, 0)
         );
         account = success ? abi.decode(data, (address)) : address(0);
     }

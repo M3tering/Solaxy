@@ -72,7 +72,7 @@ contract SolaxyUnitTest is Test {
         uint256 totalAssetsInitial = SLX.totalAssets();
 
         // Deposit reserve to Solaxy contract
-        SLX.deposit(reserve_amountDeposited, here);
+        SLX.safeDeposit(reserve_amountDeposited, here, SLX_amountMinted);
         uint256 SLX_supplyAfterDeposit = SLX.totalSupply();
         uint256 SLX_balanceAfterDeposit = SLX.balanceOf(here);
         uint256 totalAssetsAfterDeposit = SLX.totalAssets();
@@ -84,7 +84,7 @@ contract SolaxyUnitTest is Test {
         assertEq(totalAssetsAfterDeposit, reserve_amountDeposited, "reserve balance should decrease after deposit");
 
         // Withdraw reserve from Solaxy contract
-        SLX.withdraw(reserve_amountWithdrawn, here, here);
+        SLX.safeWithdraw(reserve_amountWithdrawn, here, here, SLX_amountIn);
         uint256 SLX_supplyAfterWithdraw = SLX.totalSupply();
         uint256 SLX_balanceAfterWithdraw = SLX.balanceOf(here);
         uint256 totalAssetsAfterWithdraw = SLX.totalAssets();
@@ -120,7 +120,7 @@ contract SolaxyUnitTest is Test {
         uint256 totalAssetsInitial = SLX.totalAssets();
 
         // Mint new SLX tokens
-        SLX.mint(SLX_amountMinted, here);
+        SLX.safeMint(SLX_amountMinted, here, reserve_amountDeposited);
         uint256 SLX_supplyAfterMint = SLX.totalSupply();
         uint256 SLX_balanceAfterMint = SLX.balanceOf(here);
         uint256 totalAssetsAfterMint = SLX.totalAssets();
@@ -132,7 +132,7 @@ contract SolaxyUnitTest is Test {
         assertEq(totalAssetsAfterMint, reserve_amountDeposited, "reserve balance should decrease after minting");
 
         // Redeem SLX tokens
-        SLX.redeem(SLX_amountBurned, here, here);
+        SLX.safeRedeem(SLX_amountBurned, here, here, reserve_amountWithdrawn * 93 / 100);
         uint256 SLX_supplyAfterRedeem = SLX.totalSupply();
         uint256 SLX_balanceAfterRedeem = SLX.balanceOf(here);
         uint256 totalAssetsAfterRedeem = SLX.totalAssets();

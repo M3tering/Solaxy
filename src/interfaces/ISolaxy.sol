@@ -5,6 +5,7 @@ import {IERC4626} from "@openzeppelin/contracts@5.2.0/interfaces/IERC4626.sol";
 
 interface ISolaxy is IERC4626 {
     error InconsistentBalances();
+    error StaticCallFailed();
     error RequiresM3ter();
     error SlippageError();
 

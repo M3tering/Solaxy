@@ -42,11 +42,11 @@ contract Handler is Test {
 }
 
 contract SolaxyInvarantTest is Test {
-    Solaxy public SLX;
-    IERC20 public RESERVE;
-    address public M3TER_address;
-    address public RESERVE_address;
-    address public handlerAddress;
+    Solaxy SLX;
+    IERC20 RESERVE;
+    address RESERVE_address;
+    address handlerAddress;
+    address constant M3TER_address = 0x9C8fF314C9Bc7F6e59A9d9225Fb22946427eDC03;
 
     function setUp() public {
         string memory url = vm.rpcUrl("ethereum-mainnet");
@@ -55,7 +55,6 @@ contract SolaxyInvarantTest is Test {
         SLX = new Solaxy();
         RESERVE_address = SLX.asset();
         RESERVE = IERC20(RESERVE_address);
-        M3TER_address = address(SLX.M3TER());
         handlerAddress = address(new Handler(SLX, RESERVE));
 
         deal(RESERVE_address, handlerAddress, reserve_balanceOneBillion, true);

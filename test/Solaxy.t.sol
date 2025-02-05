@@ -6,18 +6,19 @@ import {IERC20} from "@openzeppelin/contracts@5.2.0/interfaces/IERC20.sol";
 import {ISolaxy, Solaxy} from "../src/Solaxy.sol";
 
 contract SolaxyUnitTest is Test {
-    Solaxy public SLX;
-    IERC20 public RESERVE;
-    address public here;
-    address public SLX_address;
-    address public M3TER_address;
-    address public RESERVE_address;
-    uint256 public constant SLX_amountIn = 50125.007569468e18;
-    uint256 public constant SLX_amountMinted = 10000000e18;
-    uint256 public constant SLX_amountBurned = 46608.61816435866e18;
-    uint256 public constant reserve_amountDeposited = 1250000000e18;
-    uint256 public constant reserve_amountWithdrawn = 11625000e18;
-    uint256 public constant totalAssets = 1e10 * 1e18;
+    Solaxy SLX;
+    IERC20 RESERVE;
+    address here;
+    address SLX_address;
+    address M3TER_address;
+    address RESERVE_address;
+    address constant M3TER = 0x9C8fF314C9Bc7F6e59A9d9225Fb22946427eDC03;
+    uint256 constant SLX_amountIn = 50125.007569468e18;
+    uint256 constant SLX_amountMinted = 10000000e18;
+    uint256 constant SLX_amountBurned = 46608.61816435866e18;
+    uint256 constant reserve_amountDeposited = 1250000000e18;
+    uint256 constant reserve_amountWithdrawn = 11625000e18;
+    uint256 constant totalAssets = 1e10 * 1e18;
 
     function setUp() public {
         string memory url = vm.rpcUrl("ethereum-mainnet");
@@ -26,7 +27,7 @@ contract SolaxyUnitTest is Test {
 
         SLX = new Solaxy();
         SLX_address = address(SLX);
-        M3TER_address = address(SLX.M3TER());
+        M3TER_address = address(M3TER);
 
         RESERVE_address = SLX.asset();
         RESERVE = IERC20(RESERVE_address);

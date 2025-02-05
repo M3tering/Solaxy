@@ -17,11 +17,11 @@ import {ERC20Permit, ERC20} from "@openzeppelin/contracts@5.2.0/token/ERC20/exte
 contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
     using SafeERC20 for ERC20;
 
-    ERC20 public constant RESERVE = ERC20(0x6B175474E89094C44Da98b954EedeAC495271d0F); // ToDo: use asset L1 contract address
-    address public constant M3TER = 0x9C8fF314C9Bc7F6e59A9d9225Fb22946427eDC03; // ToDo: use m3ter L1 contract address
-    UD60x18 public constant SEMI_SLOPE = UD60x18.wrap(0.0000125e18);
+    ERC20 constant RESERVE = ERC20(0x6B175474E89094C44Da98b954EedeAC495271d0F); // ToDo: use asset L1 contract address
+    address constant M3TER = 0x9C8fF314C9Bc7F6e59A9d9225Fb22946427eDC03; // ToDo: use m3ter L1 contract address
+    UD60x18 constant SEMI_SLOPE = UD60x18.wrap(0.0000125e18);
 
-    constructor() ERC20("Solaxy", "SLX") ERC20Permit("Solaxy") {}
+    constructor() payable ERC20("Solaxy", "SLX") ERC20Permit("Solaxy") {}
 
     /**
      * @notice Implements {IERC4626-deposit} and protects against slippage by specifying a minimum number of shares to receive.
@@ -173,57 +173,41 @@ contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
      */
     function _pump(address receiver, uint256 assets, uint256 shares) private nonReentrant {
         (bool success, bytes memory data) = M3TER.staticcall(abi.encodeWithSignature("balanceOf(address)", receiver));
-        if (!success || abi.decode(data, (uint256)) < 1) revert RequiresM3ter();
+        if (!success) revert StaticCallFailed();
+        if (abi.decode(data, (uint256)) < 1) revert RequiresM3ter();
 
         (uint256 initialAssets, uint256 initialShares) = (totalAssets(), totalSupply());
         RESERVE.safeTransferFrom(msg.sender, address(this), assets);
         _mint(receiver, shares);
 
-        if (totalAssets() != initialAssets + assets || totalSupply() != initialShares + shares) {
-            revert InconsistentBalances();
-        }
+        if (totalAssets() != initialAssets + assets) revert InconsistentBalances();
+        if (totalSupply() != initialShares + shares) revert InconsistentBalances();
         emit Deposit(msg.sender, receiver, assets, shares);
     }
 
     /**
      * @dev Withdraw/redeem common workflow. Updates vault balances and handles external to reserve asset contract
+     * Collects a 7% tip on the underlying asset based on the price of shares after redemption/withdrawal
      * Reverts if vault balances are not consistent with expectations, only handles consistency checks for vault account
      */
     function _dump(address receiver, address owner, uint256 assets, uint256 shares) private nonReentrant {
-        (uint256 initialAssets, uint256 initialShares) = (totalAssets(), totalSupply());
-        uint256 tip = _calculateTip(ud60x18(assets), ud60x18(shares), ud60x18(initialShares)).intoUint256();
-        RESERVE.safeTransfer(receiver, assets);
+        address accImpProxy = 0x55266d75D1a14E4572138116aF39863Ed6596E7F; // @ ERC6551 v0.3.1 account implementation proxy
+        (bool success, bytes memory rawTipAccount) = 0x000000006551c19487814612e58FE06813775758.staticcall( // @ ERC6551 v0.3.1 registry
+        abi.encodeWithSignature("account(address,bytes32,uint256,address,uint256)", accImpProxy, 0x0, 1, M3TER, 0));
+        if (!success) revert StaticCallFailed();
 
+        (uint256 initialAssets, uint256 initialShares) = (totalAssets(), totalSupply());
+        uint256 tip = ud60x18(7).div(ud60x18(186)).mul(ud60x18(assets)).div(
+            SEMI_SLOPE.mul(ud60x18(initialShares).sub(ud60x18(shares)))
+        ).intoUint256();
+
+        RESERVE.safeTransfer(receiver, assets);
         if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares + tip);
-        _transfer(owner, _tipAccount(), tip);
+        _transfer(owner, abi.decode(rawTipAccount, (address)), tip);
         _burn(owner, shares);
 
-        if (totalAssets() != initialAssets - assets || totalSupply() != initialShares - shares) {
-            revert InconsistentBalances();
-        }
+        if (totalAssets() != initialAssets - assets) revert InconsistentBalances();
+        if (totalSupply() != initialShares - shares) revert InconsistentBalances();
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
-    }
-
-    /**
-     * @dev Returns ERC6551 account for M3ter 0.
-     */
-    function _tipAccount() private view returns (address account) {
-        address registry = 0x000000006551c19487814612e58FE06813775758; // @ ERC6551 v0.3.1 registry
-        address accImpProxy = 0x55266d75D1a14E4572138116aF39863Ed6596E7F; // @ ERC6551 v0.3.1 account implementation proxy
-
-        (bool success, bytes memory data) = registry.staticcall(
-            abi.encodeWithSignature("account(address,bytes32,uint256,address,uint256)", accImpProxy, 0x0, 1, M3TER, 0)
-        );
-        account = success ? abi.decode(data, (address)) : address(0);
-    }
-
-    /**
-     * @notice Compute the a 7% tip on the underlying asset based on the price of shares after redemption/withdrawal
-     * @param assets is the amount of assets the user specifies to withdraw or equivalent of shares redeemed
-     * @param shares is the amount of shares the user specifies to redeem or equivalent of assets withdrawn
-     * @param totalShares the total supply of shares
-     */
-    function _calculateTip(UD60x18 assets, UD60x18 shares, UD60x18 totalShares) private pure returns (UD60x18) {
-        return ud60x18(7).div(ud60x18(186)).mul(assets).div(SEMI_SLOPE.mul(totalShares.sub(shares)));
     }
 }

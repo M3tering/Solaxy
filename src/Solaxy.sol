@@ -15,11 +15,11 @@ import {ERC20Permit, ERC20} from "@openzeppelin/contracts@5.2.0/token/ERC20/exte
  * @custom:security-contact 25nzij1r3@mozmail.com
  */
 contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
-    using SafeERC20 for ERC20;
-
     ERC20 constant RESERVE = ERC20(0x6B175474E89094C44Da98b954EedeAC495271d0F); // ToDo: use asset L1 contract address
     address constant M3TER = 0x9C8fF314C9Bc7F6e59A9d9225Fb22946427eDC03; // ToDo: use m3ter L1 contract address
     UD60x18 constant SEMI_SLOPE = UD60x18.wrap(0.0000125e18);
+
+    using SafeERC20 for ERC20;
 
     constructor() payable ERC20("Solaxy", "SLX") ERC20Permit("Solaxy") {}
 
@@ -142,9 +142,8 @@ contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
     /**
      * @notice Computes the amount of assets to be deposited for a given number of shares minted.
      * @dev Computes assets as the area under a linear curve with a simplified form of the area of a trapezium,
-     * f(x) = mx + c, and Area = 1/2 * (a + b) * h
-     * Calculates area as SemiSlope * (amountY^2 - amountX^2), where SemiSlope = (0.000025 / 2)
-     * where amountX is the initial supply during mint and amountY is the final supply during mint
+     * f(x) = mx + c, and Area = 1/2 * (a + b) * h;
+     * During mint calculates area as SemiSlope * (finalSupply^2 - initialSupply^2), where SemiSlope = (0.000025 / 2)
      * @param shares The number of shares to be minted.
      * @return assets The computed assets as a uint256 value.
      */
@@ -156,9 +155,8 @@ contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
     /**
      * @notice Computes the amount of assets to be withdrawn for a given number of shares burned.
      * @dev Computes assets as the area under a linear curve with a simplified form of the area of a trapezium,
-     * f(x) = mx + c, and Area = 1/2 * (a + b) * h
-     * Calculates area as SemiSlope * (amountY^2 - amountX^2), where SemiSlope = (0.000025 / 2)
-     * where amountX is the final supply during redeem and amountY is the initial supply during redeem
+     * f(x) = mx + c, and Area = 1/2 * (a + b) * h;
+     * During redeem, calculates area as SemiSlope * (initialSupply^2 - finalSupply^2), where SemiSlope = (0.000025 / 2)
      * @param shares The number of shares to be redeemed.
      * @return assets The computed assets as a uint256 value.
      */
@@ -172,9 +170,7 @@ contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
      * Reverts if vault balances are not consistent with expectations, only handles consistency checks for vault account
      */
     function _pump(address receiver, uint256 assets, uint256 shares) private nonReentrant {
-        (bool success, bytes memory data) = M3TER.staticcall(abi.encodeWithSignature("balanceOf(address)", receiver));
-        if (!success) revert StaticCallFailed();
-        if (abi.decode(data, (uint256)) < 1) revert RequiresM3ter();
+        if (ERC20(M3TER).balanceOf(receiver) < 1) revert RequiresM3ter(); // actually ERC721; interface `balanceOf` works the same
 
         (uint256 initialAssets, uint256 initialShares) = (totalAssets(), totalSupply());
         RESERVE.safeTransferFrom(msg.sender, address(this), assets);
@@ -189,22 +185,26 @@ contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
      * @dev Withdraw/redeem common workflow. Updates vault balances and handles external to reserve asset contract
      * Collects a 7% tip on the underlying asset based on the price of shares after redemption/withdrawal
      * Reverts if vault balances are not consistent with expectations, only handles consistency checks for vault account
+     * Tip is computed by finding Z which equal to 7% of X; given that assets is 93% of X, then get it's equivalent in assets
+     * i.e  (7/93 * assets) /  (finalSupply * slope)
      */
     function _dump(address receiver, address owner, uint256 assets, uint256 shares) private nonReentrant {
-        address accImpProxy = 0x55266d75D1a14E4572138116aF39863Ed6596E7F; // @ ERC6551 v0.3.1 account implementation proxy
-        (bool success, bytes memory rawTipAccount) = 0x000000006551c19487814612e58FE06813775758.staticcall( // @ ERC6551 v0.3.1 registry
-        abi.encodeWithSignature("account(address,bytes32,uint256,address,uint256)", accImpProxy, 0x0, 1, M3TER, 0));
-        if (!success) revert StaticCallFailed();
-
         (uint256 initialAssets, uint256 initialShares) = (totalAssets(), totalSupply());
+
         uint256 tip = ud60x18(7).div(ud60x18(186)).mul(ud60x18(assets)).div(
             SEMI_SLOPE.mul(ud60x18(initialShares).sub(ud60x18(shares)))
         ).intoUint256();
 
-        RESERVE.safeTransfer(receiver, assets);
         if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares + tip);
-        _transfer(owner, abi.decode(rawTipAccount, (address)), tip);
         _burn(owner, shares);
+
+        address accImpProxy = 0x55266d75D1a14E4572138116aF39863Ed6596E7F; // @ ERC6551 v0.3.1 account implementation proxy
+        (bool success, bytes memory rawTipAccount) = 0x000000006551c19487814612e58FE06813775758.staticcall( // @ ERC6551 v0.3.1 registry
+        abi.encodeWithSignature("account(address,bytes32,uint256,address,uint256)", accImpProxy, 0, 1, M3TER, 0));
+        if (!success) revert StaticCallFailed();
+
+        _transfer(owner, abi.decode(rawTipAccount, (address)), tip);
+        RESERVE.safeTransfer(receiver, assets);
 
         if (totalAssets() != initialAssets - assets) revert InconsistentBalances();
         if (totalSupply() != initialShares - shares) revert InconsistentBalances();

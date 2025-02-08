@@ -170,7 +170,7 @@ contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
      * Reverts if vault balances are not consistent with expectations, only handles consistency checks for vault account
      */
     function _pump(address receiver, uint256 assets, uint256 shares) private nonReentrant {
-        if (ERC20(M3TER).balanceOf(receiver) < 1) revert RequiresM3ter(); // actually ERC721; interface `balanceOf` works the same
+        if (ERC20(M3TER).balanceOf(receiver) < 1) revert RequiresM3ter(); // actually ERC721; same signature
 
         (uint256 initialAssets, uint256 initialShares) = (totalAssets(), totalSupply());
         RESERVE.safeTransferFrom(msg.sender, address(this), assets);
@@ -183,7 +183,7 @@ contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
 
     /**
      * @dev Withdraw/redeem common workflow. Updates vault balances and handles external to reserve asset contract
-     * Collects a 7% tip on the underlying asset based on the price of shares after redemption/withdrawal
+     * Collects a 7% tip on the underlying asset, taken in shares based on the price of shares after redemption/withdrawal
      * Reverts if vault balances are not consistent with expectations, only handles consistency checks for vault account
      * Tip is computed by finding Z which equal to 7% of X; given that assets is 93% of X, then get it's equivalent in assets
      * i.e  (7/93 * assets) /  (finalSupply * slope)

@@ -171,6 +171,7 @@ contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
      */
     function _pump(address receiver, uint256 assets, uint256 shares) private nonReentrant {
         if (ERC20(M3TER).balanceOf(receiver) < 1) revert RequiresM3ter(); // actually ERC721; same signature
+        if (shares == 0) revert CannotBeZero();
 
         (uint256 initialAssets, uint256 initialShares) = (totalAssets(), totalSupply());
         RESERVE.safeTransferFrom(msg.sender, address(this), assets);
@@ -194,6 +195,10 @@ contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
         uint256 tip = ud60x18(7).div(ud60x18(186)).mul(ud60x18(assets)).div(
             SEMI_SLOPE.mul(ud60x18(initialShares).sub(ud60x18(shares)))
         ).intoUint256();
+
+        if (assets == 0) revert CannotBeZero();
+        if (shares == 0) revert CannotBeZero();
+        if (tip == 0) revert CannotBeZero();
 
         if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares + tip);
         _burn(owner, shares);

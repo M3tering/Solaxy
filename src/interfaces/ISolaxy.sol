@@ -8,6 +8,7 @@ interface ISolaxy is IERC4626 {
     error StaticCallFailed();
     error RequiresM3ter();
     error SlippageError();
+    error CannotBeZero();
 
     function safeDeposit(uint256 assets, address receiver, uint256 minSharesOut) external returns (uint256 shares);
 
@@ -21,3 +22,4 @@ interface ISolaxy is IERC4626 {
         external
         returns (uint256 assets);
 }
+

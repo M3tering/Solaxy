@@ -20,22 +20,26 @@ contract Handler is Test {
 
     function deposit(uint256 assets) public {
         assets = bound(assets, 0, 1e20);
+        if (assets == 0) vm.expectRevert(ISolaxy.CannotBeZero.selector);
         if (assets > RESERVE.balanceOf(HERE)) vm.expectRevert(IERC20Errors.ERC20InsufficientBalance.selector);
         SLX.deposit(assets, HERE);
     }
 
     function withdraw(uint256 assets) public {
         assets = bound(assets, 0, 1e20);
+        if (assets == 0) vm.expectRevert(ISolaxy.CannotBeZero.selector);
         SLX.withdraw(assets, HERE, HERE);
     }
 
     function mint(uint256 shares) public {
         shares = bound(shares, 0, 10e20);
+        if (shares == 0) vm.expectRevert(ISolaxy.CannotBeZero.selector);
         SLX.mint(shares, HERE);
     }
 
     function redeem(uint256 shares) public {
         shares = bound(shares, 0, 1e20);
+        if (shares == 0) vm.expectRevert(ISolaxy.CannotBeZero.selector);
         if (shares > SLX.balanceOf(HERE)) vm.expectRevert(IERC20Errors.ERC20InsufficientBalance.selector);
         SLX.redeem(shares, HERE, HERE);
     }

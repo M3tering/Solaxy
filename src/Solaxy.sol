@@ -2,10 +2,10 @@
 pragma solidity ^0.8.24;
 
 import {ISolaxy} from "./interfaces/ISolaxy.sol";
+import {ERC20} from "solady/tokens/ERC20.sol";
+import {ReentrancyGuard} from "solady/utils/ReentrancyGuard.sol";
+import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 import {UD60x18, ud60x18} from "@prb/math@4.1.0/src/UD60x18.sol";
-import {SafeERC20} from "@openzeppelin/contracts@5.2.0/token/ERC20/utils/SafeERC20.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts@5.2.0/utils/ReentrancyGuard.sol";
-import {ERC20Permit, ERC20} from "@openzeppelin/contracts@5.2.0/token/ERC20/extensions/ERC20Permit.sol";
 
 /**
  * @title Solaxy
@@ -14,14 +14,14 @@ import {ERC20Permit, ERC20} from "@openzeppelin/contracts@5.2.0/token/ERC20/exte
  * @dev Adheres to ERC-20 token standard and uses the ERC-4626 tokenized vault interface for bonding curve operations.
  * @custom:security-contact 25nzij1r3@mozmail.com
  */
-contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
-    ERC20 constant RESERVE = ERC20(0x6B175474E89094C44Da98b954EedeAC495271d0F); // ToDo: use asset L1 contract address
+contract Solaxy is ISolaxy, ERC20, ReentrancyGuard {
+    using SafeTransferLib for address;
+
+    address constant RESERVE = 0x6B175474E89094C44Da98b954EedeAC495271d0F; // ToDo: use asset L1 contract address
     address constant M3TER = 0x9C8fF314C9Bc7F6e59A9d9225Fb22946427eDC03; // ToDo: use m3ter L1 contract address
     UD60x18 constant SEMI_SLOPE = UD60x18.wrap(0.0000125e18);
 
-    using SafeERC20 for ERC20;
-
-    constructor() payable ERC20("Solaxy", "SLX") ERC20Permit("Solaxy") {}
+    constructor() payable ERC20() {}
 
     /**
      * @notice Implements {IERC4626-deposit} and protects against slippage by specifying a minimum number of shares to receive.
@@ -90,7 +90,7 @@ contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
     }
 
     function asset() external pure returns (address assetTokenAddress) {
-        return address(RESERVE);
+        return RESERVE;
     }
 
     function deposit(uint256 assets, address receiver) public returns (uint256 shares) {
@@ -114,7 +114,15 @@ contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
     }
 
     function totalAssets() public view returns (uint256 totalManagedAssets) {
-        totalManagedAssets = RESERVE.balanceOf(address(this));
+        totalManagedAssets = ERC20(RESERVE).balanceOf(address(this));
+    }
+
+    function name() public view virtual override returns (string memory) {
+        return "Solaxy";
+    }
+
+    function symbol() public view virtual override returns (string memory) {
+        return "SLX";
     }
 
     /**
@@ -123,7 +131,7 @@ contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
      * @param assets The amount of assets to be deposited.
      * @return shares The calculated number of shares minted for the deposited assets.
      */
-    function previewDeposit(uint256 assets) public view override returns (uint256 shares) {
+    function previewDeposit(uint256 assets) public view returns (uint256 shares) {
         UD60x18 totalShares = ud60x18(totalSupply());
         shares = totalShares.powu(2).add(ud60x18(assets).div(SEMI_SLOPE)).sqrt().sub(totalShares).intoUint256();
     }
@@ -171,6 +179,7 @@ contract Solaxy is ISolaxy, ERC20Permit, ReentrancyGuard {
      */
     function _pump(address receiver, uint256 assets, uint256 shares) private nonReentrant {
         if (ERC20(M3TER).balanceOf(receiver) < 1) revert RequiresM3ter(); // actually ERC721; same signature
+        if (assets == 0) revert CannotBeZero();
         if (shares == 0) revert CannotBeZero();
 
         (uint256 initialAssets, uint256 initialShares) = (totalAssets(), totalSupply());

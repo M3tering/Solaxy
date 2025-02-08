@@ -7,9 +7,9 @@ solc-version = "0.8.24"
 libs = ["dependencies"]
 
 remappings = [
+    "solady/=dependencies/solady-0.1.7/src/",
     "forge-std/=dependencies/forge-std-1.9.5/src/",
     "@prb/math@4.1.0/=dependencies/@prb-math-4.1.0/",
-    "@openzeppelin/contracts@5.2.0/=dependencies/@openzeppelin-contracts-5.2.0/",
 ]
 
 [soldeer]
@@ -18,8 +18,8 @@ remappings_location = "config"
 
 [dependencies]
 forge-std = "1.9.5"
+solady = "0.1.7"
 "@prb-math" = "4.1.0"
-"@openzeppelin-contracts" = "5.2.0"
 
 [rpc_endpoints]
 ethereum-mainnet = "https://gateway.tenderly.co/public/mainnet"

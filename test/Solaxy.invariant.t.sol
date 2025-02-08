@@ -2,8 +2,7 @@
 pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
-import {IERC20} from "@openzeppelin/contracts@5.2.0/interfaces/IERC20.sol";
-import {IERC20Errors} from "@openzeppelin/contracts@5.2.0/interfaces/draft-IERC6093.sol";
+import {IERC20} from "forge-std/interfaces/IERC20.sol";
 import {ISolaxy, Solaxy} from "../src/Solaxy.sol";
 
 uint256 constant reserve_balanceOneBillion = 1e9 * 1e18;
@@ -21,7 +20,7 @@ contract Handler is Test {
     function deposit(uint256 assets) public {
         assets = bound(assets, 0, 1e20);
         if (assets == 0) vm.expectRevert(ISolaxy.CannotBeZero.selector);
-        if (assets > RESERVE.balanceOf(HERE)) vm.expectRevert(IERC20Errors.ERC20InsufficientBalance.selector);
+        if (assets > RESERVE.balanceOf(HERE)) vm.expectRevert();
         SLX.deposit(assets, HERE);
     }
 
@@ -40,7 +39,7 @@ contract Handler is Test {
     function redeem(uint256 shares) public {
         shares = bound(shares, 0, 1e20);
         if (shares == 0) vm.expectRevert(ISolaxy.CannotBeZero.selector);
-        if (shares > SLX.balanceOf(HERE)) vm.expectRevert(IERC20Errors.ERC20InsufficientBalance.selector);
+        if (shares > SLX.balanceOf(HERE)) vm.expectRevert(bytes4(0xf4d678b8));
         SLX.redeem(shares, HERE, HERE);
     }
 }

@@ -133,7 +133,7 @@ contract Solaxy is ISolaxy, ERC20, ReentrancyGuard {
      */
     function previewDeposit(uint256 assets) public view returns (uint256 shares) {
         UD60x18 totalShares = ud(totalSupply());
-        shares = (totalShares.powu(2) + ud(assets).div(SEMI_SLOPE).sqrt() - totalShares).unwrap();
+        shares = ((totalShares.powu(2) + ud(assets).div(SEMI_SLOPE)).sqrt() - totalShares).unwrap();
     }
 
     /**

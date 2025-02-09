@@ -178,7 +178,7 @@ contract Solaxy is ISolaxy, ERC20, ReentrancyGuard {
      * Reverts if vault balances are not consistent with expectations, only handles consistency checks for vault account
      */
     function _pump(address receiver, uint256 assets, uint256 shares) private nonReentrant {
-        if (ERC20(M3TER).balanceOf(receiver) < 1) revert RequiresM3ter(); // actually ERC721; same signature
+        if (ERC20(M3TER).balanceOf(receiver) == 0) revert RequiresM3ter(); // actually ERC721; same signature
         if (assets == 0) revert CannotBeZero();
         if (shares == 0) revert CannotBeZero();
 

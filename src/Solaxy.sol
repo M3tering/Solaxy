@@ -153,7 +153,7 @@ contract Solaxy is ISolaxy, ERC20, ReentrancyGuard {
      * f(x) = mx + c, and Area = 1/2 * (a + b) * h;
      * During mint calculates area as SemiSlope * (finalSupply^2 - initialSupply^2), where SemiSlope = (0.000025 / 2)
      * @param shares The number of shares to be minted.
-     * @return assets The computed assets as a uint256 value.
+     * @return assets The computed assets.
      */
     function previewMint(uint256 shares) public view returns (uint256 assets) {
         UD60x18 totalShares = ud60x18(totalSupply());
@@ -166,7 +166,7 @@ contract Solaxy is ISolaxy, ERC20, ReentrancyGuard {
      * f(x) = mx + c, and Area = 1/2 * (a + b) * h;
      * During redeem, calculates area as SemiSlope * (initialSupply^2 - finalSupply^2), where SemiSlope = (0.000025 / 2)
      * @param shares The number of shares to be redeemed.
-     * @return assets The computed assets as a uint256 value.
+     * @return assets The computed assets.
      */
     function previewRedeem(uint256 shares) public view returns (uint256 assets) {
         UD60x18 totalShares = ud60x18(totalSupply());

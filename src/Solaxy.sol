@@ -5,7 +5,7 @@ import {ISolaxy} from "./interfaces/ISolaxy.sol";
 import {ERC20} from "solady/tokens/ERC20.sol";
 import {ReentrancyGuard} from "solady/utils/ReentrancyGuard.sol";
 import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
-import {UD60x18, ud60x18} from "@prb/math@4.1.0/src/UD60x18.sol";
+import {UD60x18, ud} from "@prb/math@4.1.0/src/UD60x18.sol";
 
 /**
  * @title Solaxy
@@ -66,11 +66,11 @@ contract Solaxy is ISolaxy, ERC20, ReentrancyGuard {
     }
 
     function convertToShares(uint256 assets) external view returns (uint256 shares) {
-        shares = ud60x18(assets).div(ud60x18(2 * totalSupply()).mul(SEMI_SLOPE)).intoUint256();
+        shares = ud(assets).div(ud(2 * totalSupply()).mul(SEMI_SLOPE)).unwrap();
     }
 
     function convertToAssets(uint256 shares) external view returns (uint256 assets) {
-        assets = ud60x18(shares).mul(ud60x18(2 * totalSupply()).mul(SEMI_SLOPE)).intoUint256();
+        assets = ud(shares).mul(ud(2 * totalSupply()).mul(SEMI_SLOPE)).unwrap();
     }
 
     function maxWithdraw(address owner) external view returns (uint256 maxAssets) {
@@ -132,8 +132,8 @@ contract Solaxy is ISolaxy, ERC20, ReentrancyGuard {
      * @return shares The calculated number of shares minted for the deposited assets.
      */
     function previewDeposit(uint256 assets) public view returns (uint256 shares) {
-        UD60x18 totalShares = ud60x18(totalSupply());
-        shares = totalShares.powu(2).add(ud60x18(assets).div(SEMI_SLOPE)).sqrt().sub(totalShares).intoUint256();
+        UD60x18 totalShares = ud(totalSupply());
+        shares = (totalShares.powu(2) + ud(assets).div(SEMI_SLOPE).sqrt() - totalShares).unwrap();
     }
 
     /**
@@ -143,8 +143,8 @@ contract Solaxy is ISolaxy, ERC20, ReentrancyGuard {
      * @return shares The calculated number of shares to be burned in the withdrawal.
      */
     function previewWithdraw(uint256 assets) public view returns (uint256 shares) {
-        UD60x18 totalShares = ud60x18(totalSupply());
-        shares = totalShares.sub(totalShares.powu(2).sub(ud60x18(assets).div(SEMI_SLOPE)).sqrt()).intoUint256();
+        UD60x18 totalShares = ud(totalSupply());
+        shares = (totalShares - (totalShares.powu(2) - (ud(assets).div(SEMI_SLOPE))).sqrt()).unwrap();
     }
 
     /**
@@ -156,8 +156,8 @@ contract Solaxy is ISolaxy, ERC20, ReentrancyGuard {
      * @return assets The computed assets.
      */
     function previewMint(uint256 shares) public view returns (uint256 assets) {
-        UD60x18 totalShares = ud60x18(totalSupply());
-        assets = SEMI_SLOPE.mul((totalShares + ud60x18(shares)).powu(2).sub(totalShares.powu(2))).intoUint256();
+        UD60x18 totalShares = ud(totalSupply());
+        assets = SEMI_SLOPE.mul((totalShares + ud(shares)).powu(2) - totalShares.powu(2)).unwrap();
     }
 
     /**
@@ -169,8 +169,8 @@ contract Solaxy is ISolaxy, ERC20, ReentrancyGuard {
      * @return assets The computed assets.
      */
     function previewRedeem(uint256 shares) public view returns (uint256 assets) {
-        UD60x18 totalShares = ud60x18(totalSupply());
-        assets = SEMI_SLOPE.mul(totalShares.powu(2).sub(totalShares.sub(ud60x18(shares)).powu(2))).intoUint256();
+        UD60x18 totalShares = ud(totalSupply());
+        assets = SEMI_SLOPE.mul(totalShares.powu(2) - (totalShares - ud(shares)).powu(2)).unwrap();
     }
 
     /**
@@ -200,10 +200,7 @@ contract Solaxy is ISolaxy, ERC20, ReentrancyGuard {
      */
     function _dump(address receiver, address owner, uint256 assets, uint256 shares) private nonReentrant {
         (uint256 initialAssets, uint256 initialShares) = (totalAssets(), totalSupply());
-
-        uint256 tip = ud60x18(7).div(ud60x18(186)).mul(ud60x18(assets)).div(
-            SEMI_SLOPE.mul(ud60x18(initialShares).sub(ud60x18(shares)))
-        ).intoUint256();
+        uint256 tip = ud(7).div(ud(186)).mul(ud(assets)).div(SEMI_SLOPE.mul(ud(initialShares) - ud(shares))).unwrap();
 
         if (assets == 0) revert CannotBeZero();
         if (shares == 0) revert CannotBeZero();

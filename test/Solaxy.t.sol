@@ -13,12 +13,12 @@ contract SolaxyUnitTest is Test {
     address M3TER_address;
     address RESERVE_address;
     address constant M3TER = 0x9C8fF314C9Bc7F6e59A9d9225Fb22946427eDC03;
-    uint256 constant SLX_amountIn = 50125.007569468e18;
-    uint256 constant SLX_amountMinted = 10000000e18;
-    uint256 constant SLX_amountBurned = 46608.61816435866e18;
-    uint256 constant reserve_amountDeposited = 1250000000e18;
-    uint256 constant reserve_amountWithdrawn = 11625000e18;
-    uint256 constant totalAssets = 1e10 * 1e18;
+    uint256 constant SLX_amountIn = 50_125.007569468e18;
+    uint256 constant SLX_amountMinted = 10_000_000e18;
+    uint256 constant SLX_amountBurned = 46_608.61816435866e18;
+    uint256 constant reserve_amountDeposited = 1_250_000_000e18;
+    uint256 constant reserve_amountWithdrawn = 11_625_000e18;
+    uint256 constant totalAssets = 1e28;
 
     function setUp() public {
         string memory url = vm.rpcUrl("ethereum-mainnet");
@@ -72,17 +72,20 @@ contract SolaxyUnitTest is Test {
         uint256 SLX_InitialBalance = SLX.balanceOf(here);
         uint256 totalAssetsInitial = SLX.totalAssets();
 
+        assertEq(SLX_InitialBalance, 0, "SLX balance should be 0 before deposit");
+        assertEq(totalAssetsInitial, 0, "reserve balance should be 0 before deposit");
+
         // Deposit reserve to Solaxy contract
         SLX.safeDeposit(reserve_amountDeposited, here, SLX_amountMinted);
         uint256 SLX_supplyAfterDeposit = SLX.totalSupply();
         uint256 SLX_balanceAfterDeposit = SLX.balanceOf(here);
         uint256 totalAssetsAfterDeposit = SLX.totalAssets();
 
-        assertEq(SLX_InitialBalance, 0, "SLX balance should be 0 before deposit");
-        assertEq(totalAssetsInitial, 0, "reserve balance should be 0 before deposit");
         assertEq(SLX_supplyAfterDeposit, SLX_amountMinted, "SLX supply should increase after deposit");
         assertEq(SLX_balanceAfterDeposit, SLX_amountMinted, "SLX balance should increase after deposit");
         assertEq(totalAssetsAfterDeposit, reserve_amountDeposited, "reserve balance should decrease after deposit");
+        assertEq(SLX.convertToAssets(1e18), 250e18);
+        assertEq(SLX.convertToShares(250e18), 1e18);
 
         // Withdraw reserve from Solaxy contract
         SLX.safeWithdraw(reserve_amountWithdrawn, here, here, SLX_amountIn);
@@ -131,6 +134,8 @@ contract SolaxyUnitTest is Test {
         assertEq(SLX_supplyAfterMint, SLX_amountMinted, "SLX supply should increase after minting");
         assertEq(SLX_balanceAfterMint, SLX_amountMinted, "SLX balance should increase after minting");
         assertEq(totalAssetsAfterMint, reserve_amountDeposited, "reserve balance should decrease after minting");
+        assertEq(SLX.convertToAssets(1e18), 250e18);
+        assertEq(SLX.convertToShares(250e18), 1e18);
 
         // Redeem SLX tokens
         SLX.safeRedeem(SLX_amountBurned, here, here, reserve_amountWithdrawn * 93 / 100);

@@ -117,14 +117,6 @@ contract Solaxy is ISolaxy, ERC20, ReentrancyGuard {
         totalManagedAssets = ERC20(RESERVE).balanceOf(address(this));
     }
 
-    function name() public view virtual override returns (string memory) {
-        return "Solaxy";
-    }
-
-    function symbol() public view virtual override returns (string memory) {
-        return "SLX";
-    }
-
     /**
      * @notice Computes the number of shares to be minted for a given amount of assets to be deposited.
      * @dev Utilizes the equation y = sqrt((0.0000125x^2 + A) / 0.0000125) - x, derived from the trapezium area formula.
@@ -171,6 +163,14 @@ contract Solaxy is ISolaxy, ERC20, ReentrancyGuard {
     function previewRedeem(uint256 shares) public view returns (uint256 assets) {
         UD60x18 totalShares = ud(totalSupply());
         assets = SEMI_SLOPE.mul(totalShares.powu(2) - (totalShares - ud(shares)).powu(2)).unwrap();
+    }
+
+    function name() public pure override returns (string memory) {
+        return "Solaxy";
+    }
+
+    function symbol() public pure override returns (string memory) {
+        return "SLX";
     }
 
     /**

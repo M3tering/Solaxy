@@ -120,8 +120,6 @@ contract Solaxy is Token, IERC4626, ReentrancyGuard {
     /**
      * @notice Computes the number of shares to be minted for a given amount of assets to be deposited.
      * @dev Utilizes the equation y = sqrt((0.0000125x^2 + A) / 0.0000125) - x, derived from the trapezium area formula.
-     * @param assets The amount of assets to be deposited.
-     * @return shares The calculated number of shares minted for the deposited assets.
      */
     function previewDeposit(uint256 assets) public view returns (uint256 shares) {
         UD60x18 totalShares = ud(totalSupply());
@@ -131,8 +129,6 @@ contract Solaxy is Token, IERC4626, ReentrancyGuard {
     /**
      * @notice Computes the number of shares to be burned for a given amount of assets to be withdrawn.
      * @dev Utilizes the equation y = x - sqrt((0.0000125x^2 - A) / 0.0000125), derived from the trapezium area formula.
-     * @param assets The amount of assets to be withdrawn.
-     * @return shares The calculated number of shares to be burned in the withdrawal.
      */
     function previewWithdraw(uint256 assets) public view returns (uint256 shares) {
         UD60x18 totalShares = ud(totalSupply());
@@ -144,8 +140,6 @@ contract Solaxy is Token, IERC4626, ReentrancyGuard {
      * @dev Computes assets as the area under a linear curve with a simplified form of the area of a trapezium,
      * f(x) = mx + c, and Area = 1/2 * (a + b) * h;
      * During mint calculates area as SemiSlope * (finalSupply^2 - initialSupply^2), where SemiSlope = (0.000025 / 2)
-     * @param shares The number of shares to be minted.
-     * @return assets The computed assets.
      */
     function previewMint(uint256 shares) public view returns (uint256 assets) {
         UD60x18 totalShares = ud(totalSupply());
@@ -157,8 +151,6 @@ contract Solaxy is Token, IERC4626, ReentrancyGuard {
      * @dev Computes assets as the area under a linear curve with a simplified form of the area of a trapezium,
      * f(x) = mx + c, and Area = 1/2 * (a + b) * h;
      * During redeem, calculates area as SemiSlope * (initialSupply^2 - finalSupply^2), where SemiSlope = (0.000025 / 2)
-     * @param shares The number of shares to be redeemed.
-     * @return assets The computed assets.
      */
     function previewRedeem(uint256 shares) public view returns (uint256 assets) {
         UD60x18 totalShares = ud(totalSupply());

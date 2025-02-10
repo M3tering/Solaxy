@@ -3,7 +3,7 @@ pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
 import {IERC20} from "forge-std/interfaces/IERC20.sol";
-import {ISolaxy, Solaxy} from "../src/Solaxy.sol";
+import {Solaxy} from "../src/Solaxy.sol";
 
 contract SolaxyUnitTest is Test {
     Solaxy SLX;
@@ -19,6 +19,18 @@ contract SolaxyUnitTest is Test {
     uint256 constant reserve_amountDeposited = 1_250_000_000e18;
     uint256 constant reserve_amountWithdrawn = 11_625_000e18;
     uint256 constant totalAssets = 1e28;
+
+    error RequiresM3ter();
+
+    function tipAccount() private view returns (address account) {
+        address reg = 0x000000006551c19487814612e58FE06813775758;
+        address imp = 0x55266d75D1a14E4572138116aF39863Ed6596E7F;
+
+        (bool success, bytes memory data) = address(reg).staticcall(
+            abi.encodeWithSignature("account(address,bytes32,uint256,address,uint256)", imp, 0x0, 1, M3TER_address, 0)
+        );
+        account = success ? abi.decode(data, (address)) : address(0);
+    }
 
     function setUp() public {
         string memory url = vm.rpcUrl("ethereum-mainnet");
@@ -36,16 +48,6 @@ contract SolaxyUnitTest is Test {
         RESERVE.approve(SLX_address, totalAssets);
     }
 
-    function tipAccount() private view returns (address account) {
-        address reg = 0x000000006551c19487814612e58FE06813775758;
-        address imp = 0x55266d75D1a14E4572138116aF39863Ed6596E7F;
-
-        (bool success, bytes memory data) = address(reg).staticcall(
-            abi.encodeWithSignature("account(address,bytes32,uint256,address,uint256)", imp, 0x0, 1, M3TER_address, 0)
-        );
-        account = success ? abi.decode(data, (address)) : address(0);
-    }
-
     function test_InitialSupplyOfSolaxyIsZero() public view {
         uint256 expected = 0;
         uint256 actual = SLX.totalSupply();
@@ -60,11 +62,19 @@ contract SolaxyUnitTest is Test {
     }
 
     function test_RevertWhen_CallerHoldsNoM3ter() public {
-        vm.expectRevert(ISolaxy.RequiresM3ter.selector);
+        vm.expectRevert(RequiresM3ter.selector);
         SLX.deposit(reserve_amountDeposited, here);
 
-        vm.expectRevert(ISolaxy.RequiresM3ter.selector);
+        vm.expectRevert(RequiresM3ter.selector);
         SLX.mint(SLX_amountMinted, here);
+
+        deal(SLX_address, here, SLX_amountMinted, true);
+
+        vm.expectRevert(RequiresM3ter.selector);
+        SLX.withdraw(reserve_amountWithdrawn, here, here);
+
+        vm.expectRevert(RequiresM3ter.selector);
+        SLX.redeem(SLX_amountBurned, here, here);
     }
 
     function test_M3terHolderCanDepositAndWithdraw() public {

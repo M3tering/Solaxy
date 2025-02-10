@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {ISolaxy} from "./interfaces/ISolaxy.sol";
-import {ERC20} from "solady/tokens/ERC20.sol";
+import {UD60x18, ud} from "@prb/math@4.1.0/src/UD60x18.sol";
 import {ReentrancyGuard} from "solady/utils/ReentrancyGuard.sol";
 import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
-import {UD60x18, ud} from "@prb/math@4.1.0/src/UD60x18.sol";
+import {ERC20 as Token} from "solady/tokens/ERC20.sol";
+import {ISolaxy as IERC4626} from "./interfaces/ISolaxy.sol";
 
 /**
  * @title Solaxy
@@ -14,14 +14,14 @@ import {UD60x18, ud} from "@prb/math@4.1.0/src/UD60x18.sol";
  * @dev Adheres to ERC-20 token standard and uses the ERC-4626 tokenized vault interface for bonding curve operations.
  * @custom:security-contact 25nzij1r3@mozmail.com
  */
-contract Solaxy is ISolaxy, ERC20, ReentrancyGuard {
+contract Solaxy is Token, IERC4626, ReentrancyGuard {
     using SafeTransferLib for address;
 
     address constant RESERVE = 0x6B175474E89094C44Da98b954EedeAC495271d0F; // ToDo: use asset L1 contract address
     address constant M3TER = 0x9C8fF314C9Bc7F6e59A9d9225Fb22946427eDC03; // ToDo: use m3ter L1 contract address
     UD60x18 constant SEMI_SLOPE = UD60x18.wrap(0.0000125e18);
 
-    constructor() payable ERC20() {}
+    constructor() Token() {}
 
     /**
      * @notice Implements {IERC4626-deposit} and protects against slippage by specifying a minimum number of shares to receive.
@@ -114,7 +114,7 @@ contract Solaxy is ISolaxy, ERC20, ReentrancyGuard {
     }
 
     function totalAssets() public view returns (uint256 totalManagedAssets) {
-        totalManagedAssets = ERC20(RESERVE).balanceOf(address(this));
+        totalManagedAssets = Token(RESERVE).balanceOf(address(this));
     }
 
     /**
@@ -178,11 +178,11 @@ contract Solaxy is ISolaxy, ERC20, ReentrancyGuard {
      * Reverts if vault balances are not consistent with expectations, only handles consistency checks for vault account
      */
     function _pump(address receiver, uint256 assets, uint256 shares) private nonReentrant {
-        if (ERC20(M3TER).balanceOf(receiver) == 0) revert RequiresM3ter(); // actually ERC721; same signature
         if (assets == 0) revert CannotBeZero();
         if (shares == 0) revert CannotBeZero();
-
+        if (Token(M3TER).balanceOf(receiver) == 0) revert RequiresM3ter();
         (uint256 initialAssets, uint256 initialShares) = (totalAssets(), totalSupply());
+
         RESERVE.safeTransferFrom(msg.sender, address(this), assets);
         _mint(receiver, shares);
 
@@ -202,10 +202,10 @@ contract Solaxy is ISolaxy, ERC20, ReentrancyGuard {
         (uint256 initialAssets, uint256 initialShares) = (totalAssets(), totalSupply());
         uint256 tip = ud(7).div(ud(186)).mul(ud(assets)).div(SEMI_SLOPE.mul(ud(initialShares) - ud(shares))).unwrap();
 
+        if (tip == 0) revert CannotBeZero();
         if (assets == 0) revert CannotBeZero();
         if (shares == 0) revert CannotBeZero();
-        if (tip == 0) revert CannotBeZero();
-
+        if (Token(M3TER).balanceOf(receiver) == 0) revert RequiresM3ter();
         if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares + tip);
         _burn(owner, shares);
 

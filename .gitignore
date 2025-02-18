@@ -19,12 +19,10 @@ docs/
 .env
 
 # IDE
+.deps/
 .vscode/
 .prettierrc.json
+src/artifacts/
 
 # foundry
 dependencies/
-
-# Remix
-.deps/
-src/artifacts/

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.28;
 
-import {UD60x18, ud} from "@prb/math@4.1.0/src/UD60x18.sol";
-import {ReentrancyGuard} from "solady/src/utils/ReentrancyGuard.sol";
-import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
-import {ERC20 as Token} from "solady/src/tokens/ERC20.sol";
 import {ISolaxy as IERC4626} from "./interfaces/ISolaxy.sol";
+import {UD60x18, ud} from "@prb/math@4.1.0/src/UD60x18.sol";
+import {ERC20 as Token} from "solady/src/tokens/ERC20.sol";
+import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
+import {ReentrancyGuardTransient} from "solady/src/utils/ReentrancyGuardTransient.sol";
 
 /**
  * @title Solaxy
@@ -14,7 +14,7 @@ import {ISolaxy as IERC4626} from "./interfaces/ISolaxy.sol";
  * @dev Adheres to ERC-20 token standard and uses the ERC-4626 tokenized vault interface for bonding curve operations.
  * @custom:security-contact 25nzij1r3@mozmail.com
  */
-contract Solaxy is Token, IERC4626, ReentrancyGuard {
+contract Solaxy is Token, IERC4626, ReentrancyGuardTransient {
     using SafeTransferLib for address;
 
     address constant RESERVE = 0x6B175474E89094C44Da98b954EedeAC495271d0F; // ToDo: use asset L1 contract address
@@ -29,7 +29,7 @@ contract Solaxy is Token, IERC4626, ReentrancyGuard {
      */
     function safeDeposit(uint256 assets, address receiver, uint256 minSharesOut) external returns (uint256 shares) {
         shares = deposit(assets, receiver);
-        if (shares < minSharesOut) revert SlippageError();
+        require(shares > minSharesOut, SlippageError());
     }
 
     /**
@@ -37,11 +37,11 @@ contract Solaxy is Token, IERC4626, ReentrancyGuard {
      * @param maxSharesIn The maximum number of shares the sender is willing to burn.
      */
     function safeWithdraw(uint256 assets, address receiver, address owner, uint256 maxSharesIn)
-        external
-        returns (uint256 shares)
+    external 
+    returns (uint256 shares)
     {
         shares = withdraw(assets, receiver, owner);
-        if (shares > maxSharesIn) revert SlippageError();
+        require(shares < maxSharesIn, SlippageError());
     }
 
     /**
@@ -50,7 +50,7 @@ contract Solaxy is Token, IERC4626, ReentrancyGuard {
      */
     function safeMint(uint256 shares, address receiver, uint256 maxAssetsIn) external returns (uint256 assets) {
         assets = mint(shares, receiver);
-        if (assets > maxAssetsIn) revert SlippageError();
+        require(shares < maxAssetsIn, SlippageError());
     }
 
     /**
@@ -62,7 +62,7 @@ contract Solaxy is Token, IERC4626, ReentrancyGuard {
         returns (uint256 assets)
     {
         assets = redeem(shares, receiver, owner);
-        if (assets < minAssetsOut) revert SlippageError();
+        require(shares > minAssetsOut, SlippageError());
     }
 
     function convertToShares(uint256 assets) external view returns (uint256 shares) {
@@ -170,16 +170,15 @@ contract Solaxy is Token, IERC4626, ReentrancyGuard {
      * Reverts if vault balances are not consistent with expectations, only handles consistency checks for vault account
      */
     function _pump(address receiver, uint256 assets, uint256 shares) private nonReentrant {
-        if (assets == 0) revert CannotBeZero();
-        if (shares == 0) revert CannotBeZero();
-        if (Token(M3TER).balanceOf(receiver) == 0) revert RequiresM3ter();
         (uint256 initialAssets, uint256 initialShares) = (totalAssets(), totalSupply());
+
+        require(assets > 0 && shares > 0, CannotBeZero());
+        require(Token(M3TER).balanceOf(receiver) > 0, RequiresM3ter());
 
         RESERVE.safeTransferFrom(msg.sender, address(this), assets);
         _mint(receiver, shares);
 
-        if (totalAssets() != initialAssets + assets) revert InconsistentBalances();
-        if (totalSupply() != initialShares + shares) revert InconsistentBalances();
+        require(totalAssets() == initialAssets + assets && totalSupply() == initialShares + shares, InconsistentBalances());
         emit Deposit(msg.sender, receiver, assets, shares);
     }
 
@@ -192,25 +191,23 @@ contract Solaxy is Token, IERC4626, ReentrancyGuard {
      */
     function _dump(address receiver, address owner, uint256 assets, uint256 shares) private nonReentrant {
         (uint256 initialAssets, uint256 initialShares) = (totalAssets(), totalSupply());
-        uint256 tip = ud(7).div(ud(186)).mul(ud(assets)).div(SEMI_SLOPE.mul(ud(initialShares) - ud(shares))).unwrap();
 
-        if (tip == 0) revert CannotBeZero();
-        if (assets == 0) revert CannotBeZero();
-        if (shares == 0) revert CannotBeZero();
-        if (Token(M3TER).balanceOf(receiver) == 0) revert RequiresM3ter();
+        uint256 tip = ud(7).div(ud(186)).mul(ud(assets)).div(SEMI_SLOPE.mul(ud(initialShares) - ud(shares))).unwrap();
+        require(tip > 0 && assets > 0 && shares > 0, CannotBeZero());
+        require(Token(M3TER).balanceOf(receiver) > 0, RequiresM3ter());
+
         if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares + tip);
         _burn(owner, shares);
 
         address accImpProxy = 0x55266d75D1a14E4572138116aF39863Ed6596E7F; // @ ERC6551 v0.3.1 account implementation proxy
         (bool success, bytes memory rawTipAccount) = 0x000000006551c19487814612e58FE06813775758.staticcall( // @ ERC6551 v0.3.1 registry
         abi.encodeWithSignature("account(address,bytes32,uint256,address,uint256)", accImpProxy, 0, 1, M3TER, 0));
-        if (!success) revert StaticCallFailed();
+        require(success, StaticCallFailed());
 
         _transfer(owner, abi.decode(rawTipAccount, (address)), tip);
         RESERVE.safeTransfer(receiver, assets);
 
-        if (totalAssets() != initialAssets - assets) revert InconsistentBalances();
-        if (totalSupply() != initialShares - shares) revert InconsistentBalances();
+        require(totalAssets() == initialAssets - assets && totalSupply() == initialShares - shares, InconsistentBalances());
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
 }

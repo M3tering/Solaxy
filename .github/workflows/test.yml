@@ -35,3 +35,6 @@ jobs:
         run: |
           forge test -vvv
         id: test
+      
+      - name: Run snapshot
+        run: forge snapshot

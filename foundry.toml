@@ -3,7 +3,7 @@ src = "src"
 out = "out"
 optimizer = true
 optimizer-runs = 1000
-solc-version = "0.8.24"
+solc-version = "0.8.28"
 libs = ["dependencies"]
 
 remappings = [

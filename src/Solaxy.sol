@@ -37,8 +37,8 @@ contract Solaxy is Token, IERC4626, ReentrancyGuardTransient {
      * @param maxSharesIn The maximum number of shares the sender is willing to burn.
      */
     function safeWithdraw(uint256 assets, address receiver, address owner, uint256 maxSharesIn)
-    external 
-    returns (uint256 shares)
+        external
+        returns (uint256 shares)
     {
         shares = withdraw(assets, receiver, owner);
         require(shares <= maxSharesIn, SlippageError());
@@ -178,7 +178,9 @@ contract Solaxy is Token, IERC4626, ReentrancyGuardTransient {
         RESERVE.safeTransferFrom(msg.sender, address(this), assets);
         _mint(receiver, shares);
 
-        require(totalAssets() == initialAssets + assets && totalSupply() == initialShares + shares, InconsistentBalances());
+        require(
+            totalAssets() == initialAssets + assets && totalSupply() == initialShares + shares, InconsistentBalances()
+        );
         emit Deposit(msg.sender, receiver, assets, shares);
     }
 
@@ -207,7 +209,9 @@ contract Solaxy is Token, IERC4626, ReentrancyGuardTransient {
         _transfer(owner, abi.decode(rawTipAccount, (address)), tip);
         RESERVE.safeTransfer(receiver, assets);
 
-        require(totalAssets() == initialAssets - assets && totalSupply() == initialShares - shares, InconsistentBalances());
+        require(
+            totalAssets() == initialAssets - assets && totalSupply() == initialShares - shares, InconsistentBalances()
+        );
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
 }

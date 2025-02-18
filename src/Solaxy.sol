@@ -62,7 +62,7 @@ contract Solaxy is Token, IERC4626, ReentrancyGuardTransient {
         returns (uint256 assets)
     {
         assets = redeem(shares, receiver, owner);
-        require(shares >= minAssetsOut, SlippageError());
+        require(assets >= minAssetsOut, SlippageError());
     }
 
     function convertToShares(uint256 assets) external view returns (uint256 shares) {

@@ -29,7 +29,7 @@ contract Solaxy is Token, IERC4626, ReentrancyGuardTransient {
      */
     function safeDeposit(uint256 assets, address receiver, uint256 minSharesOut) external returns (uint256 shares) {
         shares = deposit(assets, receiver);
-        require(shares > minSharesOut, SlippageError());
+        require(shares >= minSharesOut, SlippageError());
     }
 
     /**
@@ -41,7 +41,7 @@ contract Solaxy is Token, IERC4626, ReentrancyGuardTransient {
     returns (uint256 shares)
     {
         shares = withdraw(assets, receiver, owner);
-        require(shares < maxSharesIn, SlippageError());
+        require(shares <= maxSharesIn, SlippageError());
     }
 
     /**
@@ -50,7 +50,7 @@ contract Solaxy is Token, IERC4626, ReentrancyGuardTransient {
      */
     function safeMint(uint256 shares, address receiver, uint256 maxAssetsIn) external returns (uint256 assets) {
         assets = mint(shares, receiver);
-        require(shares < maxAssetsIn, SlippageError());
+        require(shares <= maxAssetsIn, SlippageError());
     }
 
     /**
@@ -62,7 +62,7 @@ contract Solaxy is Token, IERC4626, ReentrancyGuardTransient {
         returns (uint256 assets)
     {
         assets = redeem(shares, receiver, owner);
-        require(shares > minAssetsOut, SlippageError());
+        require(shares >= minAssetsOut, SlippageError());
     }
 
     function convertToShares(uint256 assets) external view returns (uint256 shares) {

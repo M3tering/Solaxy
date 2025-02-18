@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.28;
 
 interface IERC4626 {
     event Deposit(address indexed sender, address indexed owner, uint256 assets, uint256 shares);

@@ -2,9 +2,9 @@
 pragma solidity ^0.8.24;
 
 import {UD60x18, ud} from "@prb/math@4.1.0/src/UD60x18.sol";
-import {ReentrancyGuard} from "solady/utils/ReentrancyGuard.sol";
-import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
-import {ERC20 as Token} from "solady/tokens/ERC20.sol";
+import {ReentrancyGuard} from "solady/src/utils/ReentrancyGuard.sol";
+import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
+import {ERC20 as Token} from "solady/src/tokens/ERC20.sol";
 import {ISolaxy as IERC4626} from "./interfaces/ISolaxy.sol";
 
 /**

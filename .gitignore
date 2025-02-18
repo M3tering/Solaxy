@@ -24,3 +24,7 @@ docs/
 
 # foundry
 dependencies/
+
+# Remix
+.deps/
+src/artifacts/

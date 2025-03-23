@@ -196,7 +196,7 @@ contract Solaxy is Token, IERC4626, ReentrancyGuardTransient {
 
         uint256 tip = ud(7).div(ud(186)).mul(ud(assets)).div(SEMI_SLOPE.mul(ud(initialShares) - ud(shares))).unwrap();
         require(tip > 0 && assets > 0 && shares > 0, CannotBeZero());
-        require(Token(M3TER).balanceOf(receiver) > 0, RequiresM3ter());
+        require(Token(M3TER).balanceOf(owner) > 0, RequiresM3ter());
 
         if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares + tip);
         _burn(owner, shares);

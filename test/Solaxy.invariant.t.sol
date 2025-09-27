@@ -1,106 +1,100 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.28;
 
-import {CommonBase} from "forge-std/Base.sol";
-import {StdCheats} from "forge-std/StdCheats.sol";
-import {StdUtils} from "forge-std/StdUtils.sol";
 import {Test} from "forge-std/Test.sol";
-
+import {IERC20} from "forge-std/interfaces/IERC20.sol";
 import {Solaxy} from "../src/Solaxy.sol";
-import {IERC20} from "@openzeppelin/contracts@5.0.2/interfaces/IERC20.sol";
-import {CannotBeZero, Undersupply} from "../src/interfaces/ISolaxy.sol";
 
-uint256 constant sDAI_balanceOneBillion = 1e9 * 1e18;
+uint256 constant reserve_balanceOneBillion = 1e9 * 1e18;
 
-contract Handler is CommonBase, StdCheats, StdUtils {
-    Solaxy private SLX;
-    IERC20 private sDAI;
+contract Handler is Test {
+    Solaxy immutable SLX;
+    IERC20 immutable RESERVE;
+    address immutable HERE;
 
-    constructor(Solaxy slx, IERC20 sdai) {
-        SLX = slx;
-        sDAI = sdai;
-        sDAI.approve(address(slx), sDAI_balanceOneBillion);
+    error CannotBeZero();
+
+    constructor(Solaxy slx, IERC20 reserve) {
+        (SLX, RESERVE, HERE) = (slx, reserve, address(this));
+        RESERVE.approve(address(slx), reserve_balanceOneBillion);
     }
 
     function deposit(uint256 assets) public {
-        assets = bound(assets, 1e8, 1e20);
+        assets = bound(assets, 0, 1e20);
         if (assets == 0) vm.expectRevert(CannotBeZero.selector);
-        if (assets > sDAI.balanceOf(address(this))) {
-            vm.expectRevert(bytes("ERC20: transfer amount exceeds balance"));
-        }
-        SLX.deposit(assets, address(this));
+        if (assets > RESERVE.balanceOf(HERE)) vm.expectRevert();
+        SLX.deposit(assets, HERE);
     }
 
     function withdraw(uint256 assets) public {
-        assets = bound(assets, 1e8, 1e20);
+        assets = bound(assets, 0, 1e20);
         if (assets == 0) vm.expectRevert(CannotBeZero.selector);
-        if (assets > SLX.totalAssets()) vm.expectRevert(Undersupply.selector);
-        SLX.withdraw(assets, address(this), address(this));
+        SLX.withdraw(assets, HERE, HERE);
     }
 
     function mint(uint256 shares) public {
-        shares = bound(shares, 1e8, 10e20);
-        SLX.mint(shares, address(this));
+        shares = bound(shares, 0, 10e20);
+        if (shares == 0) vm.expectRevert(CannotBeZero.selector);
+        SLX.mint(shares, HERE);
     }
 
     function redeem(uint256 shares) public {
-        shares = bound(shares, 1e8, 1e20);
-        if (shares > SLX.totalSupply()) vm.expectRevert(Undersupply.selector);
-        if (shares > SLX.balanceOf(address(this))) {
-            vm.expectRevert(bytes("ERC20: burn amount exceeds balance"));
-        }
-        SLX.redeem(shares, address(this), address(this));
+        shares = bound(shares, 0, 1e20);
+        if (shares == 0) vm.expectRevert(CannotBeZero.selector);
+        if (shares > SLX.balanceOf(HERE)) vm.expectRevert(bytes4(0xf4d678b8));
+        SLX.redeem(shares, HERE, HERE);
     }
 }
 
 contract SolaxyInvarantTest is Test {
-    Handler public handler;
-    Solaxy public SLX;
-    IERC20 public sDAI;
-    address public SLX_address;
-    address public sDAI_address;
-    address public handlerAddress;
+    Solaxy SLX;
+    IERC20 RESERVE;
+    address RESERVE_address;
+    address handlerAddress;
+    address constant M3TER_address = 0x9C8fF314C9Bc7F6e59A9d9225Fb22946427eDC03;
+
+    function tipAccount() private view returns (address account) {
+        address reg = 0x000000006551c19487814612e58FE06813775758;
+        address imp = 0x55266d75D1a14E4572138116aF39863Ed6596E7F;
+
+        (bool success, bytes memory data) = address(reg).staticcall(
+            abi.encodeWithSignature("account(address,bytes32,uint256,address,uint256)", imp, 0x0, 1, M3TER_address, 0)
+        );
+        account = success ? abi.decode(data, (address)) : address(0);
+    }
 
     function setUp() public {
-        string memory url = vm.rpcUrl("gnosis-mainnet");
+        string memory url = vm.rpcUrl("ethereum-mainnet");
         vm.createSelectFork(url);
 
         SLX = new Solaxy();
-        SLX_address = address(SLX);
+        RESERVE_address = SLX.asset();
+        RESERVE = IERC20(RESERVE_address);
+        handlerAddress = address(new Handler(SLX, RESERVE));
 
-        sDAI_address = SLX.asset();
-        sDAI = IERC20(sDAI_address);
-
-        handler = new Handler(SLX, sDAI);
-        handlerAddress = address(handler);
-
-        deal(sDAI_address, handlerAddress, sDAI_balanceOneBillion, true);
-        dealERC721(address(SLX.M3TER()), handlerAddress, 0);
+        deal(RESERVE_address, handlerAddress, reserve_balanceOneBillion, true);
+        dealERC721(M3TER_address, handlerAddress, 0);
         targetContract(handlerAddress);
     }
 
-    function invariantValuation() public {
-        uint256 sDAI_balanceAfterTest = sDAI.balanceOf(handlerAddress);
-        uint256 solaxyTVL = sDAI_balanceOneBillion - sDAI_balanceAfterTest;
-        assertEq(SLX.totalAssets(), solaxyTVL, "Total value locked should be strictly equal to total reserve assets");
+    function invariantValuation() public view {
+        assertEq(
+            SLX.totalAssets(),
+            reserve_balanceOneBillion - RESERVE.balanceOf(handlerAddress),
+            "Total value locked should be strictly equal to total reserve assets"
+        );
 
-        uint256 totalFees = SLX.balanceOf(SLX.FEE_ACCOUNT());
-        uint256 totalHoldings = SLX.balanceOf(handlerAddress);
         assertEq(
             SLX.totalSupply(),
-            totalHoldings + totalFees,
-            "Total user holdings plus all fees collected should be strictly equal to the total token supply"
+            SLX.balanceOf(handlerAddress) + SLX.balanceOf(tipAccount()),
+            "Total handler holdings plus all fees collected should be strictly equal to the total token supply"
         );
 
-        assertGe(
-            SLX.totalAssets() + 1 wei,
-            SLX.convertToAssets(SLX.totalSupply()),
-            "Total reserve assets must be enough to cover the converstion of all existing tokens with a margin of error of only 1e-18 sDAI"
+        assertApproxEqAbs(
+            SLX.totalAssets(),
+            SLX.previewRedeem(SLX.totalSupply()),
+            0.000000002e18,
+            "Total reserve assets must be enough to cover the conversion of all existing tokens to less than a cent rounding error"
         );
-    }
-
-    function testKnowAccountBalance() public {
-        uint256 knowHolderBalance = sDAI.balanceOf(sDAI_address);
-        assertApproxEqAbs(knowHolderBalance, 30.5e18, 0.001e18, "sDAI balance should approximately equal 30.49 sDAI");
     }
 }

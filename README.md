@@ -33,18 +33,23 @@ Read our Contribution Guidelines for details. Join us in making Solaxy better!
 ### Project Layout
 The project is filed in the following directory structure:
 ```
-├── lib/                 # Project dependencies stored as git submodules
+├── dependencies/       # Project dependencies stored 
 ├── script/              # Foundry testing scripts
 ├── src/                 # Contains the Solidity smart contract files
 │   ├── Interfaces/      # Contract interfaces for Solaxy
 ├── test/                # Solidity tests for Foundry
 ```
 
+### How to Install Dependencies
+Soldeer is used for managing and installing the dependencies for this repo, rather that the default Foundry approach of using git submodules. Simply run `forge soldeer install` to stepup any missing dependencies. See [Foundry book](https://book.getfoundry.sh/projects/soldeer).
+
 ### How to Run Tests
 1. Ensure you have Foundry installed: See [Foundry book](https://book.getfoundry.sh/getting-started/installation)
 1. Download or clone the project repository
 1. Navigate to the project directory in your terminal.
-1. Run `forge test -vvv` to execute tests on a fork of IoTeX mainnet, 
+1. Install all dependencies: See my section on 
+ [How to Install Dependencies](#how-to-install-dependencies)
+1. Run `forge test -vvv` to execute tests on a fork of Ethereum mainnet, 
 
 ### License
 This project is licensed under the [MIT License](README.md).
